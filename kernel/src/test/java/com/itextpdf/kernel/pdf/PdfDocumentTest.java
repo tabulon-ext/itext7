@@ -52,18 +52,29 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
+import java.util.Collection;
 import java.util.List;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
 
 @Tag("BouncyCastleIntegrationTest")
 public class PdfDocumentTest extends ExtendedITextTest {
 
     public static final String SOURCE_FOLDER = "./src/test/resources/com/itextpdf/kernel/pdf/PdfDocumentTest/";
     public static final String DESTINATION_FOLDER = TestUtil.getOutputPath() + "/kernel/pdf/PdfDocumentTest/";
+
+    private static Collection<Object[]> appendModes() {
+        return Arrays.asList(new Object[][]{
+                {true},
+                {false}
+        });
+    }
 
     @BeforeAll
     public static void beforeClass() {
@@ -380,7 +391,7 @@ public class PdfDocumentTest extends ExtendedITextTest {
 
     @Test
     public void fullCompressionAppendMode() throws IOException, InterruptedException {
-        PdfWriter writer = CompareTool.createTestPdfWriter(DESTINATION_FOLDER + "fullCompressionAppendMode.pdf",
+        PdfWriter writer = new PdfWriter(DESTINATION_FOLDER + "fullCompressionAppendMode.pdf",
                 new WriterProperties()
                         .setFullCompressionMode(true)
                         .setCompressionLevel(CompressionConstants.NO_COMPRESSION));
@@ -400,15 +411,20 @@ public class PdfDocumentTest extends ExtendedITextTest {
         Assertions.assertNull(new CompareTool().compareByContent(DESTINATION_FOLDER + "fullCompressionAppendMode.pdf",
                 SOURCE_FOLDER + "cmp_fullCompressionAppendMode.pdf", DESTINATION_FOLDER, "diff_"));
 
-        PdfDocument assertDoc = new PdfDocument(CompareTool.createOutputReader(DESTINATION_FOLDER + "fullCompressionAppendMode.pdf"));
+        PdfDocument assertDoc = new PdfDocument(new PdfReader(DESTINATION_FOLDER + "fullCompressionAppendMode.pdf"));
         Assertions.assertTrue(assertDoc.getPdfObject(9).isStream());
         Assertions.assertEquals(1, ((PdfDictionary) assertDoc.getPdfObject(9)).getAsNumber(PdfName.N).intValue());
     }
 
-    @Test
-    public void checkAndResolveCircularReferences() throws IOException, InterruptedException {
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("appendModes")
+    public void checkAndResolveCircularReferences(boolean appendMode) throws IOException, InterruptedException {
+        StampingProperties props = new StampingProperties();
+        if (appendMode) {
+            props.useAppendMode();
+        }
         PdfDocument pdfDocument = new PdfDocument(new PdfReader(SOURCE_FOLDER + "datasheet.pdf"),
-                CompareTool.createTestPdfWriter(DESTINATION_FOLDER + "datasheet_mode.pdf"));
+                CompareTool.createTestPdfWriter(DESTINATION_FOLDER + "datasheet_mode.pdf"), props);
         PdfDictionary pdfObject = (PdfDictionary) pdfDocument.getPdfObject(53);
         pdfDocument.getPage(1).getResources().addForm((PdfStream) pdfObject);
         pdfDocument.close();
@@ -551,36 +567,57 @@ public class PdfDocumentTest extends ExtendedITextTest {
         }
     }
 
-    @Test
-    public void widgetDaEntryRemovePageTest() throws IOException, InterruptedException {
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("appendModes")
+    public void widgetDaEntryRemovePageTest(boolean appendMode) throws IOException, InterruptedException {
         final String testName = "widgetDaEntryRemovePage.pdf";
         final String outPdf = DESTINATION_FOLDER + testName;
+
+        StampingProperties props = new StampingProperties();
+        if (appendMode) {
+            props.useAppendMode();
+        }
         try (PdfDocument pdfDocument = new PdfDocument(
-                new PdfReader(SOURCE_FOLDER + "widgetWithDaEntry.pdf"), CompareTool.createTestPdfWriter(outPdf))) {
+                new PdfReader(SOURCE_FOLDER + "widgetWithDaEntry.pdf"), CompareTool.createTestPdfWriter(outPdf),
+                props)) {
             pdfDocument.removePage(3);
         }
         Assertions.assertNull(new CompareTool().compareByContent(outPdf, SOURCE_FOLDER + "cmp_" + testName,
                 DESTINATION_FOLDER));
     }
 
-    @Test
-    public void mergedAndSimpleWidgetsRemovePageTest() throws IOException, InterruptedException {
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("appendModes")
+    public void mergedAndSimpleWidgetsRemovePageTest(boolean appendMode) throws IOException, InterruptedException {
         final String testName = "mergedAndSimpleWidgetsRemovePage.pdf";
         final String outPdf = DESTINATION_FOLDER + testName;
+
+        StampingProperties props = new StampingProperties();
+        if (appendMode) {
+            props.useAppendMode();
+        }
         try (PdfDocument pdfDocument = new PdfDocument(
-                new PdfReader(SOURCE_FOLDER + "mergedAndSimpleWidgets.pdf"), CompareTool.createTestPdfWriter(outPdf))) {
+                new PdfReader(SOURCE_FOLDER + "mergedAndSimpleWidgets.pdf"),
+                CompareTool.createTestPdfWriter(outPdf), props)) {
             pdfDocument.removePage(1);
         }
         Assertions.assertNull(new CompareTool().compareByContent(outPdf, SOURCE_FOLDER + "cmp_" + testName,
                 DESTINATION_FOLDER));
     }
 
-    @Test
-    public void mergedSiblingWidgetsRemovePageTest() throws IOException, InterruptedException {
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("appendModes")
+    public void mergedSiblingWidgetsRemovePageTest(boolean appendMode) throws IOException, InterruptedException {
         final String testName = "mergedSiblingWidgetsRemovePage.pdf";
         final String outPdf = DESTINATION_FOLDER + testName;
+
+        StampingProperties props = new StampingProperties();
+        if (appendMode) {
+            props.useAppendMode();
+        }
         try (PdfDocument pdfDocument = new PdfDocument(
-                new PdfReader(SOURCE_FOLDER + "mergedSiblingWidgets.pdf"), CompareTool.createTestPdfWriter(outPdf))) {
+                new PdfReader(SOURCE_FOLDER + "mergedSiblingWidgets.pdf"),
+                CompareTool.createTestPdfWriter(outPdf), props)) {
             pdfDocument.removePage(2);
         }
         Assertions.assertNull(new CompareTool().compareByContent(outPdf, SOURCE_FOLDER + "cmp_" + testName,
@@ -615,7 +652,9 @@ public class PdfDocumentTest extends ExtendedITextTest {
     public void getDefaultConformanceLevelTest() {
         PdfDocument document = new PdfDocument(new PdfWriter(new ByteArrayOutputStream()));
         Assertions.assertNotNull(document.getConformance());
-        Assertions.assertFalse(document.getConformance().isPdfAOrUa());
+        Assertions.assertFalse(document.getConformance().isWtpdf());
+        Assertions.assertFalse(document.getConformance().isPdfA());
+        Assertions.assertFalse(document.getConformance().isPdfUA());
     }
 
     @Test
@@ -632,7 +671,7 @@ public class PdfDocumentTest extends ExtendedITextTest {
         String outputPdf = "pdfDocWithAAndUaMetadata.pdf";
         final WriterProperties writerProperties = new WriterProperties().addPdfAXmpMetadata(PdfAConformance.PDF_A_3A)
                 .addPdfUaXmpMetadata(PdfUAConformance.PDF_UA_1);
-        PdfDocument doc = new PdfDocument(new PdfWriter(DESTINATION_FOLDER + outputPdf, writerProperties));
+        PdfDocument doc = new PdfDocument(CompareTool.createTestPdfWriter(DESTINATION_FOLDER + outputPdf, writerProperties));
         doc.addNewPage();
         doc.close();
 

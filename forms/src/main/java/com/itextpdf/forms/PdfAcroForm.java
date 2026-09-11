@@ -22,6 +22,7 @@
  */
 package com.itextpdf.forms;
 
+import com.itextpdf.commons.logs.LazyLogger;
 import com.itextpdf.commons.utils.MessageFormatUtil;
 import com.itextpdf.commons.utils.StringSplitUtil;
 import com.itextpdf.forms.exceptions.FormsExceptionMessageConstant;
@@ -65,15 +66,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * This class represents the static form technology AcroForm on a PDF file.
  */
 public class PdfAcroForm extends PdfObjectWrapper<PdfDictionary> {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger(PdfAcroForm.class);
+    private static final LazyLogger LOGGER = new LazyLogger(PdfAcroForm.class);
 
     /**
      * To be used with {@link #setSignatureFlags}.
@@ -253,7 +252,7 @@ public class PdfAcroForm extends PdfObjectWrapper<PdfDictionary> {
             if (throwExceptionOnError) {
                 throw new PdfException(FormsExceptionMessageConstant.FORM_FIELD_MUST_HAVE_A_NAME);
             } else {
-                LOGGER.warn(FormsLogMessageConstants.FORM_FIELD_MUST_HAVE_A_NAME);
+                LOGGER.warn(() -> FormsLogMessageConstants.FORM_FIELD_MUST_HAVE_A_NAME);
                 return;
             }
         }
@@ -399,8 +398,7 @@ public class PdfAcroForm extends PdfObjectWrapper<PdfDictionary> {
      */
     public PdfAcroForm setNeedAppearances(boolean needAppearances) {
         if (VersionConforming.validatePdfVersionForDeprecatedFeatureLogError(document, PdfVersion.PDF_2_0, VersionConforming.DEPRECATED_NEED_APPEARANCES_IN_ACROFORM)) {
-            getPdfObject().remove(PdfName.NeedAppearances);
-            setModified();
+            remove(PdfName.NeedAppearances);
         } else {
             put(PdfName.NeedAppearances, PdfBoolean.valueOf(needAppearances));
         }
@@ -701,8 +699,7 @@ public class PdfAcroForm extends PdfObjectWrapper<PdfDictionary> {
      */
     public void setGenerateAppearance(boolean generateAppearance) {
         if (generateAppearance) {
-            getPdfObject().remove(PdfName.NeedAppearances);
-            setModified();
+            remove(PdfName.NeedAppearances);
         }
         this.generateAppearance = generateAppearance;
     }
@@ -775,9 +772,16 @@ public class PdfAcroForm extends PdfObjectWrapper<PdfDictionary> {
                         xObject = new PdfFormXObject((PdfStream) normal);
                     } else if (normal.isDictionary()) {
                         PdfName as = fieldObject.getAsName(PdfName.AS);
-                        if (((PdfDictionary) normal).getAsStream(as) != null) {
-                            xObject = new PdfFormXObject(((PdfDictionary) normal).getAsStream(as));
-                            xObject.makeIndirect(document);
+                        if (as == null) {
+                            LOGGER.warn(() -> MessageFormatUtil.format(
+                                    FormsLogMessageConstants.FORMFIELD_DOES_NOT_CONTAIN_AS, formField.getFieldName()));
+                        } else {
+                            final PdfDictionary normalDict = (PdfDictionary) normal;
+                            final PdfStream asStream = normalDict.getAsStream(as);
+                            if (asStream != null) {
+                                xObject = new PdfFormXObject(asStream);
+                                xObject.makeIndirect(document);
+                            }
                         }
                     }
 
@@ -797,7 +801,7 @@ public class PdfAcroForm extends PdfObjectWrapper<PdfDictionary> {
                         PdfObject xObjectResources = xObject.getPdfObject().get(PdfName.Resources);
                         PdfObject pageResources = page.getResources().getPdfObject();
                         if (xObjectResources != null && xObjectResources == pageResources) {
-                            xObject.getPdfObject().put(PdfName.Resources,
+                            xObject.put(PdfName.Resources,
                                     initialPageResourceClones.get(document.getPageNumber(page)));
                         }
 
@@ -817,7 +821,7 @@ public class PdfAcroForm extends PdfObjectWrapper<PdfDictionary> {
                         }
                     }
                 } else {
-                    LOGGER.warn(FormsLogMessageConstants.N_ENTRY_IS_REQUIRED_FOR_APPEARANCE_DICTIONARY);
+                    LOGGER.warn(() -> FormsLogMessageConstants.N_ENTRY_IS_REQUIRED_FOR_APPEARANCE_DICTIONARY);
                 }
 
                 PdfArray fFields = getFields();
@@ -828,7 +832,7 @@ public class PdfAcroForm extends PdfObjectWrapper<PdfDictionary> {
             }
         }
 
-        getPdfObject().remove(PdfName.NeedAppearances);
+        remove(PdfName.NeedAppearances);
         if (fieldsForFlattening.size() == 0) {
             getFields().clear();
         }
@@ -904,7 +908,7 @@ public class PdfAcroForm extends PdfObjectWrapper<PdfDictionary> {
     public void renameField(String oldName, String newName) {
         final PdfFormField oldField = getField(oldName);
         if (oldField == null) {
-            LOGGER.warn(MessageFormatUtil.format(
+            LOGGER.warn(() -> MessageFormatUtil.format(
                     FormsLogMessageConstants.FIELDNAME_NOT_FOUND_OPERATION_CAN_NOT_BE_COMPLETED, oldName));
             return;
         }
@@ -941,7 +945,7 @@ public class PdfAcroForm extends PdfObjectWrapper<PdfDictionary> {
      */
     public void replaceField(String name, PdfFormField field) {
         if (name == null) {
-            LOGGER.warn(FormsLogMessageConstants.PROVIDE_FORMFIELD_NAME);
+            LOGGER.warn(() -> FormsLogMessageConstants.PROVIDE_FORMFIELD_NAME);
             return;
         }
         removeField(name);
@@ -986,9 +990,9 @@ public class PdfAcroForm extends PdfObjectWrapper<PdfDictionary> {
     protected PdfArray getFields() {
         PdfArray fields = getPdfObject().getAsArray(PdfName.Fields);
         if (fields == null) {
-            LOGGER.warn(FormsLogMessageConstants.NO_FIELDS_IN_ACROFORM);
+            LOGGER.warn(() -> FormsLogMessageConstants.NO_FIELDS_IN_ACROFORM);
             fields = new PdfArray();
-            getPdfObject().put(PdfName.Fields, fields);
+            put(PdfName.Fields, fields);
         }
         return fields;
     }
@@ -1004,7 +1008,7 @@ public class PdfAcroForm extends PdfObjectWrapper<PdfDictionary> {
         final PdfArray shouldBeRemoved = new PdfArray();
         for (PdfObject field : rawFields) {
             if (field.isFlushed()) {
-                LOGGER.info(FormsLogMessageConstants.FORM_FIELD_WAS_FLUSHED);
+                LOGGER.info(() -> FormsLogMessageConstants.FORM_FIELD_WAS_FLUSHED);
                 continue;
             }
 
@@ -1012,7 +1016,7 @@ public class PdfAcroForm extends PdfObjectWrapper<PdfDictionary> {
             if (formField == null) {
                 // Pure annotation can't be in AcroForm dictionary
                 // Ok, let's just skip them, they were (will be) processed with their parents if any
-                LOGGER.warn(FormsLogMessageConstants.ANNOTATION_IN_ACROFORM_DICTIONARY);
+                LOGGER.warn(() -> FormsLogMessageConstants.ANNOTATION_IN_ACROFORM_DICTIONARY);
                 continue;
             }
             PdfFormFieldMergeUtil.mergeKidsWithSameNames(formField, false);
@@ -1136,12 +1140,26 @@ public class PdfAcroForm extends PdfObjectWrapper<PdfDictionary> {
      * Put a key/value pair in the dictionary and overwrite previous value if it already exists.
      *
      * @param key   the key as pdf name
+     *
      * @param value the value as pdf object
      *
      * @return this {@link PdfAcroForm} instance
      */
     public PdfAcroForm put(PdfName key, PdfObject value) {
         getPdfObject().put(key, value);
+        setModified();
+        return this;
+    }
+
+    /**
+     * Removes the specified key from the {@link PdfDictionary} of the acroform.
+     *
+     * @param key key to be removed
+     *
+     * @return this {@link PdfAcroForm} instance
+     */
+    public PdfAcroForm remove(PdfName key) {
+        getPdfObject().remove(key);
         setModified();
         return this;
     }

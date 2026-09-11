@@ -22,14 +22,17 @@
  */
 package com.itextpdf.io.font.otf;
 
-import com.itextpdf.io.util.TextUtil;
 import com.itextpdf.commons.utils.MessageFormatUtil;
+import com.itextpdf.io.util.TextUtil;
 
 import java.util.Arrays;
 
+/**
+ * Represents a glyph and its Unicode mapping, metrics, and layout adjustments.
+ */
 public class Glyph {
     private static final char REPLACEMENT_CHARACTER = '\ufffd';
-    private static final char[] REPLACEMENT_CHARACTERS = new char[] {REPLACEMENT_CHARACTER};
+    private static final char[] REPLACEMENT_CHARACTERS = new char[]{REPLACEMENT_CHARACTER};
     private static final String REPLACEMENT_CHARACTER_STRING = String.valueOf(REPLACEMENT_CHARACTER);
 
     // The <i>code</i> or <i>id</i> by which this is represented in the Font File.
@@ -107,7 +110,7 @@ public class Glyph {
      * @param width normalized width of the glyph
      * @param unicode utf-32 representation of glyph if appears. Correct value is &gt; -1
      * @param chars The Unicode text represented by this Glyph.
-     *              if null is passed, the unicode value is used to retrieve the chars.
+     * if null is passed, the unicode value is used to retrieve the chars.
      * @param IsMark True if the glyph is a Mark
      */
     public Glyph(int code, int width, int unicode, char[] chars, boolean IsMark) {
@@ -139,7 +142,20 @@ public class Glyph {
     }
 
     /**
-     * Copy a Glyph and assign new placement and advance offsets and a new index delta to base glyph
+     * Copy a Glyph and assign new advance offsets.
+     *
+     * @param glyph Glyph to copy
+     * @param xAdvance x - advance offset
+     * @param yAdvance y - advance offset
+     */
+    public Glyph(Glyph glyph, int xAdvance, int yAdvance) {
+        this(glyph);
+        this.xAdvance = (short) xAdvance;
+        this.yAdvance = (short) yAdvance;
+    }
+
+    /**
+     * Copy a Glyph and assign new placement and advance offsets and a new index delta to base glyph.
      *
      * @param glyph Glyph to copy
      * @param xPlacement x - placement offset
@@ -149,11 +165,9 @@ public class Glyph {
      * @param anchorDelta Index delta to base glyph. If after a glyph there are several anchored glyphs we should know we to find base glyph.
      */
     public Glyph(Glyph glyph, int xPlacement, int yPlacement, int xAdvance, int yAdvance, int anchorDelta) {
-        this(glyph);
+        this(glyph, xAdvance, yAdvance);
         this.xPlacement = (short) xPlacement;
         this.yPlacement = (short) yPlacement;
-        this.xAdvance = (short) xAdvance;
-        this.yAdvance = (short) yAdvance;
         this.anchorDelta = (short) anchorDelta;
     }
 
@@ -167,96 +181,210 @@ public class Glyph {
         this(glyph.code, glyph.width, unicode, getChars(unicode), glyph.isMark());
     }
 
+    /**
+     * Returns the {@code code} or {@code id} by which this is represented in the Font File.
+     *
+     * @return the requested result
+     */
     public int getCode() {
         return code;
     }
 
+    /**
+     * Returns the normalized width of this Glyph.
+     *
+     * @return the requested result
+     */
     public int getWidth() {
         return width;
     }
 
+    /**
+     * Returns the normalized bbox of this Glyph.
+     *
+     * @return the requested result
+     */
     public int[] getBbox() {
         return bbox;
     }
 
+    /**
+     * Determines whether valid unicode applies.
+     *
+     * @return {@code true} if the operation succeeds; otherwise {@code false}
+     */
     public boolean hasValidUnicode() {
         return unicode > -1;
     }
 
+    /**
+     * Returns the unicode (utf-32 representation of Glyph).
+     *
+     * @return the requested result
+     */
     public int getUnicode() {
         return unicode;
     }
 
+    /**
+     * Updates the Unicode text represented by this Glyph.
+     *
+     * @param unicode the utf-32 representation of Glyph
+     */
     public void setUnicode(int unicode) {
         this.unicode = unicode;
         this.chars = getChars(unicode);
     }
 
+    /**
+     * Returns the Unicode text represented by this Glyph.
+     *
+     * @return the requested result
+     */
     public char[] getChars() {
         return chars;
     }
 
+    /**
+     * Updates the Unicode text represented by this Glyph.
+     *
+     * @param chars the Unicode text represented by this Glyph
+     */
     public void setChars(char[] chars) {
         this.chars = chars;
     }
 
+    /**
+     * Determines whether this Glyph is Mark.
+     *
+     * @return {@code true} if this Glyph is Mark; otherwise {@code false}
+     */
     public boolean isMark() {
         return isMark;
     }
 
+    /**
+     * Returns the placement x offset.
+     *
+     * @return the requested result
+     */
     public short getXPlacement() {
         return xPlacement;
     }
 
+    /**
+     * Updates the placement x offset.
+     *
+     * @param xPlacement the x offset for placement
+     */
     public void setXPlacement(short xPlacement) {
         this.xPlacement = xPlacement;
     }
 
+    /**
+     * Returns the placement y offset.
+     *
+     * @return the requested result
+     */
     public short getYPlacement() {
         return yPlacement;
     }
 
+    /**
+     * Updates the placement y offset.
+     *
+     * @param yPlacement the y offset for placement
+     */
     public void setYPlacement(short yPlacement) {
         this.yPlacement = yPlacement;
     }
 
+    /**
+     * Returns the advance x offset.
+     *
+     * @return the requested result
+     */
     public short getXAdvance() {
         return xAdvance;
     }
 
+    /**
+     * Updates the advance x offset.
+     *
+     * @param xAdvance the x advance
+     */
     public void setXAdvance(short xAdvance) {
         this.xAdvance = xAdvance;
     }
 
+    /**
+     * Returns the advance y offset.
+     *
+     * @return the requested result
+     */
     public short getYAdvance() {
         return yAdvance;
     }
 
+    /**
+     * Updates the advance y offset.
+     *
+     * @param yAdvance the y advance
+     */
     public void setYAdvance(short yAdvance) {
         this.yAdvance = yAdvance;
     }
 
+    /**
+     * Gets the index delta to base glyph.
+     *
+     * @return the index delta to base glyph
+     */
     public short getAnchorDelta() {
+        // Non-zero value potentially means that the glyph is mark (isMark is never used, seems as something to improve).
         return anchorDelta;
     }
 
+    /**
+     * Sets the index delta to base glyph.
+     *
+     * @param anchorDelta the index delta to base glyph to be set
+     */
     public void setAnchorDelta(short anchorDelta) {
         this.anchorDelta = anchorDelta;
     }
 
+    /**
+     * Checks whether the glyph has any offsets either own or advance or both at the same time.
+     *
+     * <p>
+     * See {@link #hasPlacement()} and {@link #hasAdvance()}.
+     *
+     * @return {@code true} if glyph has any offsets, {@code false} otherwise
+     */
     public boolean hasOffsets() {
         return hasAdvance() || hasPlacement();
     }
 
-    // In case some of placement values are not zero we always expect anchorDelta to be non-zero
+    /**
+     * Checks whether the glyph has own offsets: either for X axis or Y axis or both at the same time.
+     *
+     * @return {@code true} if glyph has any own offsets, {@code false} otherwise
+     */
     public boolean hasPlacement() {
-        return anchorDelta != 0;
+        return xPlacement != 0 || yPlacement != 0;
     }
 
+    /**
+     * Checks whether the glyph has advance offsets: either for X axis or Y axis or both at the same time.
+     *
+     * @return {@code true} if glyph has any advance offsets, {@code false} otherwise
+     */
     public boolean hasAdvance() {
         return xAdvance != 0 || yAdvance != 0;
     }
 
+    @Override
     public int hashCode() {
         final int prime = 31;
         int result = 1;
@@ -269,9 +397,11 @@ public class Glyph {
     /**
      * Two Glyphs are equal if their unicode characters, code and normalized width are equal.
      *
-     * @param obj The object
-     * @return True if this equals obj cast to Glyph, false otherwise.
+     * @param obj еhe object
+     *
+     * @return {@code true} if this equals obj cast to Glyph, false otherwise
      */
+    @Override
     public boolean equals(Object obj) {
         if (this == obj) {
             return true;
@@ -287,6 +417,7 @@ public class Glyph {
      * Gets a Unicode string corresponding to this glyph. In general case it might consist of many characters.
      * If this glyph does not have a valid unicode ({@link #hasValidUnicode()}), then a string consisting of a special
      * Unicode '\ufffd' character is returned.
+     *
      * @return the Unicode string that corresponds to this glyph
      */
     public String getUnicodeString() {
@@ -301,6 +432,7 @@ public class Glyph {
      * Gets Unicode char sequence corresponding to this glyph. In general case it might consist of many characters.
      * If this glyph does not have a valid unicode ({@link #hasValidUnicode()}), then a special
      * Unicode '\ufffd' character is returned.
+     *
      * @return the Unicode char sequence that corresponds to this glyph
      */
     public char[] getUnicodeChars() {
@@ -311,6 +443,12 @@ public class Glyph {
         }
     }
 
+    /**
+     * Returns a string representation of this glyph.
+     *
+     * @return the requested result
+     */
+    @Override
     public String toString() {
         return MessageFormatUtil.format("[id={0}, chars={1}, uni={2}, width={3}]",
                 toHex(code), chars != null ? Arrays.toString(chars) : "null", toHex(unicode), width);

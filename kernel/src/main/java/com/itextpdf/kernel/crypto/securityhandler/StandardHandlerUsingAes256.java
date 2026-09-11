@@ -22,6 +22,7 @@
  */
 package com.itextpdf.kernel.crypto.securityhandler;
 
+import com.itextpdf.commons.logs.LazyLogger;
 import com.itextpdf.io.logs.IoLogMessageConstant;
 import com.itextpdf.io.util.StreamUtil;
 import com.itextpdf.kernel.exceptions.PdfException;
@@ -43,10 +44,10 @@ import java.math.BigInteger;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.Arrays;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 public class StandardHandlerUsingAes256 extends StandardSecurityHandler {
+
+    private static final LazyLogger LOGGER = new LazyLogger(StandardHandlerUsingAes256.class);
 
     private static final int VALIDATION_SALT_OFFSET = 32;
     private static final int KEY_SALT_OFFSET = 40;
@@ -194,7 +195,7 @@ public class StandardHandlerUsingAes256 extends StandardSecurityHandler {
             // Algorithm 8.2
             hash = computeHash(userPassword, userValAndKeySalt, 8, 8);
             AESCipherCBCnoPad ac = new AESCipherCBCnoPad(true, hash);
-            ueKey = ac.processBlock(nextObjectKey, 0, nextObjectKey.length);
+            ueKey = ac.processFullBlock(nextObjectKey, 0, nextObjectKey.length);
 
 
             // Algorithm 9.1
@@ -205,7 +206,7 @@ public class StandardHandlerUsingAes256 extends StandardSecurityHandler {
             // Algorithm 9.2
             hash = computeHash(ownerPassword, ownerValAndKeySalt, 8, 8, userKey);
             ac = new AESCipherCBCnoPad(true, hash);
-            oeKey = ac.processBlock(nextObjectKey, 0, nextObjectKey.length);
+            oeKey = ac.processFullBlock(nextObjectKey, 0, nextObjectKey.length);
 
 
             // Algorithm 10
@@ -237,7 +238,7 @@ public class StandardHandlerUsingAes256 extends StandardSecurityHandler {
         permsp[10] = (byte) 'd';
         permsp[11] = (byte) 'b';
         ac = new AESCipherCBCnoPad(true, nextObjectKey);
-        aes256Perms = ac.processBlock(permsp, 0, permsp.length);
+        aes256Perms = ac.processFullBlock(permsp, 0, permsp.length);
 
         return aes256Perms;
     }
@@ -271,7 +272,7 @@ public class StandardHandlerUsingAes256 extends StandardSecurityHandler {
             if (usedOwnerPassword) {
                 hash = computeHash(password, oValue, KEY_SALT_OFFSET, SALT_LENGTH, uValue);
                 AESCipherCBCnoPad ac = new AESCipherCBCnoPad(false, hash);
-                nextObjectKey = ac.processBlock(oeValue, 0, oeValue.length);
+                nextObjectKey = ac.processFullBlock(oeValue, 0, oeValue.length);
             } else {
                 hash = computeHash(password, uValue, VALIDATION_SALT_OFFSET, SALT_LENGTH);
                 if (!equalsArray(hash, uValue, 32)) {
@@ -279,12 +280,12 @@ public class StandardHandlerUsingAes256 extends StandardSecurityHandler {
                 }
                 hash = computeHash(password, uValue, KEY_SALT_OFFSET, SALT_LENGTH);
                 AESCipherCBCnoPad ac = new AESCipherCBCnoPad(false, hash);
-                nextObjectKey = ac.processBlock(ueValue, 0, ueValue.length);
+                nextObjectKey = ac.processFullBlock(ueValue, 0, ueValue.length);
             }
             nextObjectKeySize = 32;
 
             AESCipherCBCnoPad ac = new AESCipherCBCnoPad(false, nextObjectKey);
-            byte[] decPerms = ac.processBlock(perms, 0, perms.length);
+            byte[] decPerms = ac.processFullBlock(perms, 0, perms.length);
             if (decPerms[9] != (byte) 'a' || decPerms[10] != (byte) 'd' || decPerms[11] != (byte) 'b') {
                 throw new BadPasswordException(KernelExceptionMessageConstant.BAD_USER_PASSWORD);
             }
@@ -295,8 +296,8 @@ public class StandardHandlerUsingAes256 extends StandardSecurityHandler {
             Boolean encryptMetadataEntry = encryptionDictionary.getAsBool(PdfName.EncryptMetadata);
             if (permissionsDecoded != permissions || encryptMetadataEntry != null &&
                     encryptMetadata != encryptMetadataEntry) {
-                Logger logger = LoggerFactory.getLogger(StandardHandlerUsingAes256.class);
-                logger.error(IoLogMessageConstant.ENCRYPTION_ENTRIES_P_AND_ENCRYPT_METADATA_NOT_CORRESPOND_PERMS_ENTRY);
+                LOGGER.error(() ->
+                        IoLogMessageConstant.ENCRYPTION_ENTRIES_P_AND_ENCRYPT_METADATA_NOT_CORRESPOND_PERMS_ENTRY);
             }
             this.permissions = permissionsDecoded;
             this.encryptMetadata = encryptMetadata;
@@ -351,7 +352,7 @@ public class StandardHandlerUsingAes256 extends StandardSecurityHandler {
                 // b)
                 AESCipherCBCnoPad cipher =
                         new AESCipherCBCnoPad(true, Arrays.copyOf(k, 16), Arrays.copyOfRange(k, 16, 32));
-                byte[] e = cipher.processBlock(k1, 0, k1.length);
+                byte[] e = cipher.processFullBlock(k1, 0, k1.length);
 
                 // c)
                 MessageDigest md = null;
@@ -390,17 +391,17 @@ public class StandardHandlerUsingAes256 extends StandardSecurityHandler {
         return k;
     }
 
-    private byte[] truncateArray(byte[] array) {
-        if (array.length == 48) {
-            return array;
+    private static byte[] truncateArray(byte[] byteArray) {
+        if (byteArray.length == 48) {
+            return byteArray;
         }
-        for (int i = 48; i < array.length; ++i) {
-            if (array[i] != 0) {
+        for (int i = 48; i < byteArray.length; ++i) {
+            if (byteArray[i] != 0) {
                 throw new PdfException(KernelExceptionMessageConstant.BAD_PASSWORD_HASH);
             }
         }
         byte[] truncated = new byte[48];
-        System.arraycopy(array, 0, truncated, 0, 48);
+        System.arraycopy(byteArray, 0, truncated, 0, 48);
         return truncated;
     }
 }

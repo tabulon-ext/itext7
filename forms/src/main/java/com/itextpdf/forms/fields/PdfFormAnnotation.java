@@ -23,6 +23,7 @@
 package com.itextpdf.forms.fields;
 
 import com.itextpdf.commons.datastructures.NullableContainer;
+import com.itextpdf.commons.logs.LazyLogger;
 import com.itextpdf.forms.PdfAcroForm;
 import com.itextpdf.forms.fields.borders.FormBorderFactory;
 import com.itextpdf.forms.fields.properties.CheckBoxType;
@@ -79,8 +80,6 @@ import com.itextpdf.layout.renderer.MetaInfoContainer;
 
 import java.util.LinkedHashSet;
 import java.util.Set;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * This class represents a single annotation in form fields hierarchy in an {@link com.itextpdf.forms.PdfAcroForm
@@ -105,7 +104,7 @@ public class PdfFormAnnotation extends AbstractPdfFormField {
      * Value which represents "on" state of form field.
      */
     public static final String ON_STATE_VALUE = "Yes";
-    private static final Logger LOGGER = LoggerFactory.getLogger(PdfFormAnnotation.class);
+    private static final LazyLogger LOGGER = new LazyLogger(PdfFormAnnotation.class);
     private static final String LINE_ENDINGS_REGEXP = "\\r\\n|\\r|\\n";
     private static final float EPS = 1e-4f;
     protected float borderWidth = 1;
@@ -745,13 +744,18 @@ public class PdfFormAnnotation extends AbstractPdfFormField {
             return;
         }
         // Rotation
-        PdfPage page = getWidget().getPage();
-        final int pageRotation = page == null ? 0 : page.getRotation();
-        final int additionalFieldRotation =
-                ((PdfSignatureFormField) parent).isPageRotationIgnored() ? 0 : -pageRotation;
-        final int fieldRotation = getRotation() + additionalFieldRotation;
-        PdfArray matrix = getRotationMatrix(fieldRotation, rectangle.getHeight(), rectangle.getWidth());
-        rectangle = applyRotation(fieldRotation + pageRotation, rectangle);
+        PdfArray matrix;
+        if (((PdfSignatureFormField) parent).isPageRotationIgnored()) {
+            PdfPage page = getWidget().getPage();
+            final int pageRotation = page == null ? 0 : page.getRotation();
+            final int additionalFieldRotation = 0;
+            final int fieldRotation = getRotation() + additionalFieldRotation;
+            matrix = getRotationMatrix(fieldRotation, rectangle.getHeight(), rectangle.getWidth());
+            rectangle = applyRotation(fieldRotation + pageRotation, rectangle);
+        } else {
+            matrix = getRotationMatrix(getRotation(), rectangle.getHeight(), rectangle.getWidth());
+            rectangle = applyRotation(getRotation(), rectangle);
+        }
 
         createSigField();
         setModelElementProperties(rectangle);
@@ -1099,7 +1103,7 @@ public class PdfFormAnnotation extends AbstractPdfFormField {
         final Canvas canvasOff = new Canvas(xObjectOff, getDocument());
         setMetaInfoToCanvas(canvasOff);
         canvasOff.add(formFieldElement);
-        if (getPdfConformance() == null || !getPdfConformance().isPdfAOrUaOrWtpdf()) {
+        if (getPdfConformance() == null || !getPdfConformance().conformsToAny()) {
             xObjectOff.getResources().addFont(getDocument(), getFont());
         }
         normalAppearance.put(new PdfName(OFF_STATE_VALUE), xObjectOff.getPdfObject());
@@ -1264,7 +1268,7 @@ public class PdfFormAnnotation extends AbstractPdfFormField {
             if (textField.isComb()) {
                 if (textField.getMaxLen() == 0 ||
                         textField.isMultiline() || textField.isPassword() || textField.isFileSelect()) {
-                    LOGGER.error(IoLogMessageConstant.COMB_FLAG_MAY_BE_SET_ONLY_IF_MAXLEN_IS_PRESENT);
+                    LOGGER.error(() -> IoLogMessageConstant.COMB_FLAG_MAY_BE_SET_ONLY_IF_MAXLEN_IS_PRESENT);
                     return false;
                 }
                 return true;
@@ -1380,8 +1384,7 @@ public class PdfFormAnnotation extends AbstractPdfFormField {
             case 270:
                 return new PdfArray(new float[] {0, -1, 1, 0, 0, width});
             default:
-                Logger logger = LoggerFactory.getLogger(PdfFormAnnotation.class);
-                logger.error(FormsLogMessageConstants.INCORRECT_WIDGET_ROTATION);
+                LOGGER.error(() -> FormsLogMessageConstants.INCORRECT_WIDGET_ROTATION);
                 return null;
         }
     }
@@ -1520,17 +1523,19 @@ public class PdfFormAnnotation extends AbstractPdfFormField {
         PdfFormXObject n2LayerXObject = new PdfFormXObject(new Rectangle(0, 0, width, height));
         Canvas n2LayerCanvas = new Canvas(n2LayerXObject, this.getDocument());
 
-        PdfPage page = getWidget().getPage();
-        int rotation = page == null ? 0 : page.getRotation();
-        float squeezeTransformation = height / width;
-        if (rotation == 90) {
-            n2LayerCanvas.getPdfCanvas()
-                    .concatMatrix(0, squeezeTransformation, -1 / squeezeTransformation, 0, width, 0);
-        } else if (rotation == 180) {
-            n2LayerCanvas.getPdfCanvas().concatMatrix(-1, 0, 0, -1, width, height);
-        } else if (rotation == 270) {
-            n2LayerCanvas.getPdfCanvas()
-                    .concatMatrix(0, -squeezeTransformation, 1 / squeezeTransformation, 0, 0, height);
+        if (((PdfSignatureFormField) parent).isPageRotationIgnored()) {
+            PdfPage page = getWidget().getPage();
+            int rotation = page == null ? 0 : page.getRotation();
+            float squeezeTransformation = height / width;
+            if (rotation == 90) {
+                n2LayerCanvas.getPdfCanvas()
+                        .concatMatrix(0, squeezeTransformation, -1 / squeezeTransformation, 0, width, 0);
+            } else if (rotation == 180) {
+                n2LayerCanvas.getPdfCanvas().concatMatrix(-1, 0, 0, -1, width, height);
+            } else if (rotation == 270) {
+                n2LayerCanvas.getPdfCanvas()
+                        .concatMatrix(0, -squeezeTransformation, 1 / squeezeTransformation, 0, 0, height);
+            }
         }
         n2LayerCanvas.add(formFieldElement);
         // We need to draw waitingDrawingElements (drawn inside close method), but the close method

@@ -26,16 +26,21 @@ import com.itextpdf.commons.datastructures.Tuple2;
 import com.itextpdf.io.exceptions.IOException;
 import com.itextpdf.io.exceptions.IoExceptionMessageConstant;
 import com.itextpdf.io.font.constants.TrueTypeCodePages;
+import com.itextpdf.io.font.otf.FeatureRecord;
 import com.itextpdf.io.font.otf.Glyph;
 import com.itextpdf.io.font.otf.GlyphPositioningTableReader;
 import com.itextpdf.io.font.otf.GlyphSubstitutionTableReader;
+import com.itextpdf.io.font.otf.LanguageRecord;
+import com.itextpdf.io.font.otf.OpenTableLookup;
+import com.itextpdf.io.font.otf.OpenTypeFontTableReader;
 import com.itextpdf.io.font.otf.OpenTypeGdefTableReader;
 import com.itextpdf.io.util.IntHashtable;
 
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -43,13 +48,22 @@ import java.util.Set;
 import java.util.SortedSet;
 import java.util.stream.Collectors;
 
+/**
+ * Font program backed by an OpenType/TrueType font or a TrueType Collection member.
+ */
 public class TrueTypeFont extends FontProgram {
 
 
     private OpenTypeParser fontParser;
 
+    /**
+     * Per-glyph bounding boxes indexed by glyph ID, in normalized glyph units.
+     */
     protected int[][] bBoxes;
 
+    /**
+     * Indicates that the selected CMap uses vertical writing metrics.
+     */
     protected boolean isVertical;
 
     private GlyphSubstitutionTableReader gsubTable;
@@ -73,18 +87,43 @@ public class TrueTypeFont extends FontProgram {
         initializeFontProperties();
     }
 
+    /**
+     * Creates an uninitialized font.
+     */
     protected TrueTypeFont() {
         fontNames = new FontNames();
     }
 
+    /**
+     * Loads a standalone OpenType or TrueType font from a path.
+     *
+     * @param path path to the font file
+     *
+     * @throws java.io.IOException if the file cannot be read or parsed
+     */
     public TrueTypeFont(String path) throws java.io.IOException {
         this(new OpenTypeParser(path));
     }
 
+    /**
+     * Loads a standalone OpenType or TrueType font from its binary contents.
+     *
+     * @param ttf font bytes
+     *
+     * @throws java.io.IOException if the bytes cannot be parsed
+     */
     public TrueTypeFont(byte[] ttf) throws java.io.IOException {
         this(new OpenTypeParser(ttf));
     }
 
+    /**
+     * Loads a font from binary contents.
+     *
+     * @param ttf           font bytes
+     * @param isLenientMode {@code true} to enable lenient parser behavior, see {@link OpenTypeParser#OpenTypeParser(byte[], boolean)}
+     *
+     * @throws java.io.IOException if the bytes cannot be parsed
+     */
     public TrueTypeFont(byte[] ttf, boolean isLenientMode) throws java.io.IOException {
         this(new OpenTypeParser(ttf, isLenientMode));
     }
@@ -118,10 +157,20 @@ public class TrueTypeFont extends FontProgram {
         return kerning.get((first.getCode() << 16) + second.getCode());
     }
 
+    /**
+     * Checks whether this OpenType font stores a CFF table.
+     *
+     * @return {@code true} for CFF-flavored OpenType fonts
+     */
     public boolean isCff() {
         return fontParser.isCff();
     }
 
+    /**
+     * Gets the preferred character-to-glyph CMap selected from the font.
+     *
+     * @return mapping from character code to CMap data
+     */
     public Map<Integer, int[]> getActiveCmap() {
         OpenTypeParser.CmapTable cmaps = fontParser.getCmapTable();
         if (cmaps.cmap310 != null) {
@@ -137,6 +186,13 @@ public class TrueTypeFont extends FontProgram {
         }
     }
 
+    /**
+     * Gets the bytes of the font.
+     *
+     * @return CFF bytes for CFF fonts or complete font bytes otherwise
+     *
+     * @throws com.itextpdf.io.exceptions.IOException if the source font cannot be read
+     */
     public byte[] getFontStreamBytes() {
         if (fontStreamBytes != null)
             return fontStreamBytes;
@@ -179,14 +235,29 @@ public class TrueTypeFont extends FontProgram {
         return fontParser.directoryOffset;
     }
 
+    /**
+     * Gets the GSUB table reader.
+     *
+     * @return substitution table reader
+     */
     public GlyphSubstitutionTableReader getGsubTable() {
         return gsubTable;
     }
 
+    /**
+     * Gets the GPOS table reader.
+     *
+     * @return positioning table reader
+     */
     public GlyphPositioningTableReader getGposTable() {
         return gposTable;
     }
 
+    /**
+     * Gets the GDEF table reader.
+     *
+     * @return glyph definition table reader
+     */
     public OpenTypeGdefTableReader getGdefTable() {
         return gdefTable;
     }
@@ -319,6 +390,50 @@ public class TrueTypeFont extends FontProgram {
         return cmaps.cmapEncodings.size();
     }
 
+
+    /**
+     * Extracts features from GSUB and GPOS tables based on the passed script tags.
+     * The features are put in the passed extractedFeatures map
+     *
+     * @param otfScriptTags the script tags to extract the features for
+     * @param extractedFeatures the features will be added to this map
+     * @return the script tag which was used to extract features.
+     * It may be null if no features were extracted or default script tag was used.
+     */
+    public String extractFeatures(Collection<String> otfScriptTags,
+            Map<String, List<OpenTableLookup>> extractedFeatures) {
+        List<String> otfScriptTagsList;
+        otfScriptTagsList = new ArrayList<String>();
+        if (otfScriptTags != null) {
+            otfScriptTagsList.addAll(otfScriptTags);
+        }
+        String dfltScriptTag = "DFLT";
+        otfScriptTagsList.add(dfltScriptTag);
+
+        GlyphSubstitutionTableReader gsubTableReader = getGsubTable();
+        String usedScriptTag = extractFeaturesFromTable(gsubTableReader, otfScriptTagsList, extractedFeatures);
+
+        String finalUsedScriptTag = null;
+        if (usedScriptTag != null && !dfltScriptTag.equals(usedScriptTag)) {
+            // In case there are more than one version of script, let's try use it for both gsub and gpos.
+            // For this reason reinit otfScriptTagsList without other versions of scripts
+            otfScriptTagsList = Arrays.asList(usedScriptTag, dfltScriptTag);
+            finalUsedScriptTag = usedScriptTag;
+        }
+
+        GlyphPositioningTableReader gposTableReader = getGposTable();
+        usedScriptTag = extractFeaturesFromTable(gposTableReader, otfScriptTagsList, extractedFeatures);
+        if (finalUsedScriptTag == null) {
+            finalUsedScriptTag = usedScriptTag;
+        }
+        return finalUsedScriptTag;
+    }
+
+    /**
+     * Reads the GDEF table.
+     *
+     * @throws java.io.IOException if the table cannot be read
+     */
     protected void readGdefTable() throws java.io.IOException {
         int[] gdef = fontParser.tables.get("GDEF");
         if (gdef != null) {
@@ -329,6 +444,11 @@ public class TrueTypeFont extends FontProgram {
         gdefTable.readTable();
     }
 
+    /**
+     * Creates the GSUB table reader when the font supplies a GSUB table.
+     *
+     * @throws java.io.IOException if the table cannot be read
+     */
     protected void readGsubTable() throws java.io.IOException {
         int[] gsub = fontParser.tables.get("GSUB");
         if (gsub != null) {
@@ -336,6 +456,11 @@ public class TrueTypeFont extends FontProgram {
         }
     }
 
+    /**
+     * Creates the GPOS table reader.
+     *
+     * @throws java.io.IOException if the table cannot be read
+     */
     protected void readGposTable() throws java.io.IOException {
         int[] gpos = fontParser.tables.get("GPOS");
         if (gpos != null) {
@@ -487,6 +612,11 @@ public class TrueTypeFont extends FontProgram {
         return Objects.equals(fontParser.fileName, fontProgram);
     }
 
+    /**
+     * Closes the underlying font parser and releases its source data.
+     *
+     * @throws java.io.IOException if closing the source fails
+     */
     public void close() throws java.io.IOException {
         if (fontParser != null) {
             fontParser.close();
@@ -590,5 +720,29 @@ public class TrueTypeFont extends FontProgram {
         }
 
         return missingGlyphs;
+    }
+
+    private static String extractFeaturesFromTable(OpenTypeFontTableReader table, Iterable<String> otfScriptTagsList,
+            Map<String, List<OpenTableLookup>> extractedFeatures) {
+        String usedScriptTag = null;
+
+        LanguageRecord languageRecord = null;
+        if (table != null) {
+            for (String scriptTag : otfScriptTagsList) {
+                languageRecord = table.getLanguageRecord(scriptTag);
+                if (languageRecord != null) {
+                    usedScriptTag = scriptTag;
+                    break;
+                }
+            }
+        }
+        if (languageRecord != null) {
+            for (int featureIndex : languageRecord.getFeatures()) {
+                FeatureRecord feature = table.getFeatureRecords().get(featureIndex);
+                List<OpenTableLookup> lookups = table.getLookups(new FeatureRecord[] {feature});
+                extractedFeatures.put(feature.getTag(), lookups);
+            }
+        }
+        return usedScriptTag;
     }
 }

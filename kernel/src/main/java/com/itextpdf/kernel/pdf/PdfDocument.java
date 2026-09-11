@@ -28,6 +28,7 @@ import com.itextpdf.commons.actions.confirmations.ConfirmEvent;
 import com.itextpdf.commons.actions.confirmations.EventConfirmationType;
 import com.itextpdf.commons.actions.data.ProductData;
 import com.itextpdf.commons.actions.sequence.SequenceId;
+import com.itextpdf.commons.logs.LazyLogger;
 import com.itextpdf.commons.utils.DIContainer;
 import com.itextpdf.commons.utils.MessageFormatUtil;
 import com.itextpdf.io.logs.IoLogMessageConstant;
@@ -87,14 +88,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.Consumer;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Main enter point to work with PDF document.
  */
 public class PdfDocument implements Closeable {
-    private static final PdfName[] PDF_NAMES_TO_REMOVE_FROM_ORIGINAL_TRAILER = new PdfName[] {
+    private static final PdfName[] PDF_NAMES_TO_REMOVE_FROM_ORIGINAL_TRAILER = new PdfName[]{
             PdfName.Encrypt,
             PdfName.Size,
             PdfName.Prev,
@@ -105,7 +104,7 @@ public class PdfDocument implements Closeable {
             PdfName.AuthCode
     };
 
-    private static final Logger LOGGER = LoggerFactory.getLogger(PdfDocument.class);
+    private static final LazyLogger LOGGER = new LazyLogger(PdfDocument.class);
 
     protected final StampingProperties properties;
     /**
@@ -200,7 +199,6 @@ public class PdfDocument implements Closeable {
     private XMPMeta xmpMetadata = null;
 
 
-
     /**
      * Open PDF document in reading mode.
      *
@@ -213,7 +211,7 @@ public class PdfDocument implements Closeable {
     /**
      * Open PDF document in reading mode.
      *
-     * @param reader     PDF reader.
+     * @param reader PDF reader
      * @param properties document properties
      */
     public PdfDocument(PdfReader reader, DocumentProperties properties) {
@@ -240,7 +238,7 @@ public class PdfDocument implements Closeable {
      * Open PDF document in writing mode.
      * Document has no pages when initialized.
      *
-     * @param writer     PDF writer
+     * @param writer PDF writer
      * @param properties document properties
      */
     public PdfDocument(PdfWriter writer, DocumentProperties properties) {
@@ -257,8 +255,8 @@ public class PdfDocument implements Closeable {
      * Opens PDF document in the stamping mode.
      * <br>
      *
-     * @param reader PDF reader.
-     * @param writer PDF writer.
+     * @param reader PDF reader
+     * @param writer PDF writer
      */
     public PdfDocument(PdfReader reader, PdfWriter writer) {
         this(reader, writer, new StampingProperties());
@@ -267,8 +265,8 @@ public class PdfDocument implements Closeable {
     /**
      * Open PDF document in stamping mode.
      *
-     * @param reader     PDF reader.
-     * @param writer     PDF writer.
+     * @param reader PDF reader
+     * @param writer PDF writer
      * @param properties properties of the stamping process
      */
     public PdfDocument(PdfReader reader, PdfWriter writer, StampingProperties properties) {
@@ -285,10 +283,10 @@ public class PdfDocument implements Closeable {
 
         boolean writerHasEncryption = writerHasEncryption();
         if (properties.appendMode && writerHasEncryption) {
-            LOGGER.warn(IoLogMessageConstant.WRITER_ENCRYPTION_IS_IGNORED_APPEND);
+            LOGGER.warn(() -> IoLogMessageConstant.WRITER_ENCRYPTION_IS_IGNORED_APPEND);
         }
         if (properties.preserveEncryption && writerHasEncryption) {
-            LOGGER.warn(IoLogMessageConstant.WRITER_ENCRYPTION_IS_IGNORED_PRESERVE);
+            LOGGER.warn(() -> IoLogMessageConstant.WRITER_ENCRYPTION_IS_IGNORED_PRESERVE);
         }
 
         open(writer.properties.pdfVersion);
@@ -348,7 +346,7 @@ public class PdfDocument implements Closeable {
         try {
             getXmpMetadata();
         } catch (XMPException e) {
-            LOGGER.error(IoLogMessageConstant.EXCEPTION_WHILE_UPDATING_XMPMETADATA, e);
+            LOGGER.error(() -> IoLogMessageConstant.EXCEPTION_WHILE_UPDATING_XMPMETADATA, e);
         }
     }
 
@@ -501,7 +499,7 @@ public class PdfDocument implements Closeable {
     /**
      * Gets the last page of the document.
      *
-     * @return last page.
+     * @return last page
      */
     public PdfPage getLastPage() {
         return getPage(getNumberOfPages());
@@ -568,7 +566,7 @@ public class PdfDocument implements Closeable {
     /**
      * Creates and inserts new page to the document.
      *
-     * @param index    position to addPage page to
+     * @param index position to addPage page to
      * @param pageSize page size of the new page
      *
      * @return inserted page
@@ -587,9 +585,9 @@ public class PdfDocument implements Closeable {
     /**
      * Adds page to the end of document.
      *
-     * @param page page to add.
+     * @param page page to add
      *
-     * @return added page.
+     * @return added page
      *
      * @throws PdfException in case {@code page} is flushed
      */
@@ -604,7 +602,7 @@ public class PdfDocument implements Closeable {
      * Inserts page to the document.
      *
      * @param index position to addPage page to
-     * @param page  page to addPage
+     * @param page page to addPage
      *
      * @return inserted page
      *
@@ -620,7 +618,7 @@ public class PdfDocument implements Closeable {
     /**
      * Gets number of pages of the document.
      *
-     * @return number of pages.
+     * @return number of pages
      */
     public int getNumberOfPages() {
         checkClosingStatus();
@@ -630,9 +628,9 @@ public class PdfDocument implements Closeable {
     /**
      * Gets page number by page.
      *
-     * @param page the page.
+     * @param page the page
      *
-     * @return page number.
+     * @return page number
      */
     public int getPageNumber(PdfPage page) {
         checkClosingStatus();
@@ -642,9 +640,9 @@ public class PdfDocument implements Closeable {
     /**
      * Gets page number by {@link PdfDictionary}.
      *
-     * @param pageDictionary {@link PdfDictionary} that present page.
+     * @param pageDictionary {@link PdfDictionary} that present page
      *
-     * @return page number by {@link PdfDictionary}.
+     * @return page number by {@link PdfDictionary}
      */
     public int getPageNumber(PdfDictionary pageDictionary) {
         return catalog.getPageTree().getPageNumber(pageDictionary);
@@ -653,7 +651,7 @@ public class PdfDocument implements Closeable {
     /**
      * Moves page to new place in same document with all it tag structure
      *
-     * @param page         page to be moved in document if present
+     * @param page page to be moved in document if present
      * @param insertBefore indicates before which page new one will be inserted to
      *
      * @return <tt>true</tt> if this document contained the specified page
@@ -671,7 +669,7 @@ public class PdfDocument implements Closeable {
     /**
      * Moves page to new place in same document with all it tag structure
      *
-     * @param pageNumber   number of Page that will be moved
+     * @param pageNumber number of Page that will be moved
      * @param insertBefore indicates before which page new one will be inserted to
      */
     public void movePage(int pageNumber, int insertBefore) {
@@ -834,7 +832,7 @@ public class PdfDocument implements Closeable {
      */
     public void dispatchEvent(AbstractPdfDocumentEvent event) {
         event.setDocument(this);
-        for (final IEventHandler handler : documentHandlers) {
+        for (IEventHandler handler : new LinkedHashSet<>(documentHandlers)) {
             handler.onEvent(event);
         }
     }
@@ -994,8 +992,7 @@ public class PdfDocument implements Closeable {
                 // The following 2 operators prevent the possible inconsistency between root and info
                 // entries existing in the trailer object and corresponding fields. This inconsistency
                 // may appear when user gets trailer and explicitly sets new root or info dictionaries.
-                PdfAConformance pdfAConformance = this.getConformance().getAConformance();
-                if (pdfAConformance != null && "4".equals(pdfAConformance.getPart())) {
+                if (pdfConformance.isPdfA() && "4".equals(pdfConformance.getAConformance().getPart())) {
                     if (this.getCatalog().getPdfObject().get(PdfName.PieceInfo) != null) {
                         // Leave only ModDate as required by 6.1.3 File trailer of pdf/a-4 spec
                         getDocumentInfo().removeCreationDate();
@@ -1068,17 +1065,16 @@ public class PdfDocument implements Closeable {
 
                     catalog.getPdfObject().put(PdfName.Pages, catalog.getPageTree().generateTree());
 
-                    for (Map.Entry<PdfName, PdfNameTree> entry : catalog.nameTrees.entrySet()) {
-                        PdfNameTree tree = entry.getValue();
-                        if (tree.isModified()) {
-                            ensureTreeRootAddedToNames(tree.buildTree().makeIndirect(this), entry.getKey());
-                        }
-                    }
-
                     for (int pageNum = 1; pageNum <= getNumberOfPages(); pageNum++) {
                         PdfPage page = getPage(pageNum);
                         if (page != null) {
                             page.flush();
+                        }
+                    }
+                    for (Map.Entry<PdfName, PdfNameTree> entry : catalog.nameTrees.entrySet()) {
+                        PdfNameTree tree = entry.getValue();
+                        if (tree.isModified()) {
+                            ensureTreeRootAddedToNames(tree.buildTree().makeIndirect(this), entry.getKey());
                         }
                     }
                     if (structTreeRoot != null) {
@@ -1144,7 +1140,7 @@ public class PdfDocument implements Closeable {
                 try {
                     writer.finish();
                 } catch (Exception e) {
-                    LOGGER.error(IoLogMessageConstant.PDF_WRITER_CLOSING_FAILED, e);
+                    LOGGER.error(() -> IoLogMessageConstant.PDF_WRITER_CLOSING_FAILED, e);
                 }
             }
 
@@ -1152,7 +1148,7 @@ public class PdfDocument implements Closeable {
                 try {
                     reader.close();
                 } catch (Exception e) {
-                    LOGGER.error(IoLogMessageConstant.PDF_READER_CLOSING_FAILED, e);
+                    LOGGER.error(() -> IoLogMessageConstant.PDF_READER_CLOSING_FAILED, e);
                 }
             }
 
@@ -1163,7 +1159,7 @@ public class PdfDocument implements Closeable {
     /**
      * Gets close status of the document.
      *
-     * @return true, if the document has already been closed, otherwise false.
+     * @return true, if the document has already been closed, otherwise false
      */
     public boolean isClosed() {
         return closed;
@@ -1172,7 +1168,7 @@ public class PdfDocument implements Closeable {
     /**
      * Gets tagged status of the document.
      *
-     * @return true, if the document has tag structure, otherwise false.
+     * @return true, if the document has tag structure, otherwise false
      */
     public boolean isTagged() {
         return structTreeRoot != null;
@@ -1199,7 +1195,7 @@ public class PdfDocument implements Closeable {
     /**
      * Gets {@link PdfStructTreeRoot} of tagged document.
      *
-     * @return {@link PdfStructTreeRoot} in case document is tagged, otherwise it returns null.
+     * @return {@link PdfStructTreeRoot} in case document is tagged, otherwise it returns null
      *
      * @see #isTagged()
      * @see #getNextStructParentIndex()
@@ -1211,7 +1207,7 @@ public class PdfDocument implements Closeable {
     /**
      * Gets next parent index of tagged document.
      *
-     * @return -1 if document is not tagged, or &gt;= 0 if tagged.
+     * @return -1 if document is not tagged, or &gt;= 0 if tagged
      *
      * @see #isTagged()
      * @see #getNextStructParentIndex()
@@ -1224,7 +1220,7 @@ public class PdfDocument implements Closeable {
      * Gets document {@code TagStructureContext}.
      * The document must be tagged, otherwise an exception will be thrown.
      *
-     * @return document {@code TagStructureContext}.
+     * @return document {@code TagStructureContext}
      */
     public TagStructureContext getTagStructureContext() {
         checkClosingStatus();
@@ -1249,10 +1245,10 @@ public class PdfDocument implements Closeable {
      * In this case iText will log a warning. This can be avoided by renaming
      * destinations names in the source document.
      *
-     * @param pageFrom         start of the range of pages to be copied.
-     * @param pageTo           end of the range of pages to be copied.
-     * @param toDocument       a document to copy pages to.
-     * @param insertBeforePage a position where to insert copied pages.
+     * @param pageFrom start of the range of pages to be copied
+     * @param pageTo end of the range of pages to be copied
+     * @param toDocument a document to copy pages to
+     * @param insertBeforePage a position where to insert copied pages
      *
      * @return list of copied pages
      */
@@ -1280,19 +1276,19 @@ public class PdfDocument implements Closeable {
      * In this case iText will log a warning. This can be avoided by renaming
      * destinations names in the source document.
      *
-     * @param pageFrom         1-based start of the range of pages to be copied.
-     * @param pageTo           1-based end (inclusive) of the range of pages to be copied. This page is included in list
-     *                         of copied pages.
-     * @param toDocument       a document to copy pages to.
-     * @param insertBeforePage a position where to insert copied pages.
-     * @param copier           a copier which bears a special copy logic. May be null.
-     *                         It is recommended to use the same instance of {@link IPdfPageExtraCopier}
-     *                         for the same output document.
+     * @param pageFrom 1-based start of the range of pages to be copied
+     * @param pageTo 1-based end (inclusive) of the range of pages to be copied. This page is included in list
+     * of copied pages
+     * @param toDocument a document to copy pages to
+     * @param insertBeforePage a position where to insert copied pages
+     * @param copier a copier which bears a special copy logic. May be null.
+     * It is recommended to use the same instance of {@link IPdfPageExtraCopier}
+     * for the same output document
      *
      * @return list of new copied pages
      */
     public List<PdfPage> copyPagesTo(int pageFrom, int pageTo, PdfDocument toDocument, int insertBeforePage,
-            IPdfPageExtraCopier copier) {
+                                     IPdfPageExtraCopier copier) {
         List<Integer> pages = new ArrayList<>();
         for (int i = pageFrom; i <= pageTo; i++) {
             pages.add(i);
@@ -1311,10 +1307,10 @@ public class PdfDocument implements Closeable {
      * In this case iText will log a warning. This can be avoided by renaming
      * destinations names in the source document.
      *
-     * @param pageFrom   1-based start of the range of pages to be copied.
-     * @param pageTo     1-based end (inclusive) of the range of pages to be copied. This page is included in list of
-     *                   copied pages.
-     * @param toDocument a document to copy pages to.
+     * @param pageFrom 1-based start of the range of pages to be copied
+     * @param pageTo 1-based end (inclusive) of the range of pages to be copied. This page is included in list of
+     * copied pages
+     * @param toDocument a document to copy pages to
      *
      * @return list of new copied pages
      */
@@ -1333,15 +1329,15 @@ public class PdfDocument implements Closeable {
      * In this case iText will log a warning. This can be avoided by renaming
      * destinations names in the source document.
      *
-     * @param pageFrom   1-based start of the range of pages to be copied.
-     * @param pageTo     1-based end (inclusive) of the range of pages to be copied. This page is included in list of
-     *                   copied pages.
-     * @param toDocument a document to copy pages to.
-     * @param copier     a copier which bears a special copy logic. May be null.
-     *                   It is recommended to use the same instance of {@link IPdfPageExtraCopier}
-     *                   for the same output document.
+     * @param pageFrom 1-based start of the range of pages to be copied
+     * @param pageTo 1-based end (inclusive) of the range of pages to be copied. This page is included in list of
+     * copied pages
+     * @param toDocument a document to copy pages to
+     * @param copier a copier which bears a special copy logic. May be null.
+     * It is recommended to use the same instance of {@link IPdfPageExtraCopier}
+     * for the same output document
      *
-     * @return list of new copied pages.
+     * @return list of new copied pages
      */
     public List<PdfPage> copyPagesTo(int pageFrom, int pageTo, PdfDocument toDocument, IPdfPageExtraCopier copier) {
         return copyPagesTo(pageFrom, pageTo, toDocument, toDocument.getNumberOfPages() + 1, copier);
@@ -1357,9 +1353,9 @@ public class PdfDocument implements Closeable {
      * In this case iText will log a warning. This can be avoided by renaming
      * destinations names in the source document.
      *
-     * @param pagesToCopy      list of pages to be copied.
-     * @param toDocument       a document to copy pages to.
-     * @param insertBeforePage a position where to insert copied pages.
+     * @param pagesToCopy list of pages to be copied
+     * @param toDocument a document to copy pages to
+     * @param insertBeforePage a position where to insert copied pages
      *
      * @return list of new copied pages
      */
@@ -1377,17 +1373,17 @@ public class PdfDocument implements Closeable {
      * In this case iText will log a warning. This can be avoided by renaming
      * destinations names in the source document.
      *
-     * @param pagesToCopy      list of pages to be copied.
-     * @param toDocument       a document to copy pages to.
-     * @param insertBeforePage a position where to insert copied pages.
-     * @param copier           a copier which bears a special copy logic. May be null.
-     *                         It is recommended to use the same instance of {@link IPdfPageExtraCopier}
-     *                         for the same output document.
+     * @param pagesToCopy list of pages to be copied
+     * @param toDocument a document to copy pages to
+     * @param insertBeforePage a position where to insert copied pages
+     * @param copier a copier which bears a special copy logic. May be null.
+     * It is recommended to use the same instance of {@link IPdfPageExtraCopier}
+     * for the same output document
      *
      * @return list of new copied pages
      */
     public List<PdfPage> copyPagesTo(List<Integer> pagesToCopy, PdfDocument toDocument, int insertBeforePage,
-            IPdfPageExtraCopier copier) {
+                                     IPdfPageExtraCopier copier) {
         if (pagesToCopy.isEmpty()) {
             return Collections.<PdfPage>emptyList();
         }
@@ -1460,7 +1456,7 @@ public class PdfDocument implements Closeable {
                     ((IPdfPageFormCopier) copier).recreateAcroformToProcessCopiedFields(toDocument);
                 }
             } else {
-                LOGGER.warn(IoLogMessageConstant.NOT_TAGGED_PAGES_IN_TAGGED_DOCUMENT);
+                LOGGER.warn(() -> IoLogMessageConstant.NOT_TAGGED_PAGES_IN_TAGGED_DOCUMENT);
             }
         }
         if (catalog.isOutlineMode()) {
@@ -1479,8 +1475,8 @@ public class PdfDocument implements Closeable {
      * In this case iText will log a warning. This can be avoided by renaming
      * destinations names in the source document.
      *
-     * @param pagesToCopy list of pages to be copied.
-     * @param toDocument  a document to copy pages to.
+     * @param pagesToCopy list of pages to be copied
+     * @param toDocument a document to copy pages to
      *
      * @return list of copied pages
      */
@@ -1498,11 +1494,11 @@ public class PdfDocument implements Closeable {
      * In this case iText will log a warning. This can be avoided by renaming
      * destinations names in the source document.
      *
-     * @param pagesToCopy list of pages to be copied.
-     * @param toDocument  a document to copy pages to.
-     * @param copier      a copier which bears a special copy logic. May be null.
-     *                    It is recommended to use the same instance of {@link IPdfPageExtraCopier}
-     *                    for the same output document.
+     * @param pagesToCopy list of pages to be copied
+     * @param toDocument a document to copy pages to
+     * @param copier a copier which bears a special copy logic. May be null.
+     * It is recommended to use the same instance of {@link IPdfPageExtraCopier}
+     * for the same output document
      *
      * @return list of copied pages
      */
@@ -1528,7 +1524,7 @@ public class PdfDocument implements Closeable {
     /**
      * Checks, whether {@link #close()} method will close associated PdfReader.
      *
-     * @return true, {@link #close()} method is going to close associated PdfReader, otherwise false.
+     * @return true, {@link #close()} method is going to close associated PdfReader, otherwise false
      */
     public boolean isCloseReader() {
         return closeReader;
@@ -1537,7 +1533,7 @@ public class PdfDocument implements Closeable {
     /**
      * Sets, whether {@link #close()} method shall close associated PdfReader.
      *
-     * @param closeReader true, {@link #close()} method shall close associated PdfReader, otherwise false.
+     * @param closeReader true, {@link #close()} method shall close associated PdfReader, otherwise false
      */
     public void setCloseReader(boolean closeReader) {
         checkClosingStatus();
@@ -1547,7 +1543,7 @@ public class PdfDocument implements Closeable {
     /**
      * Checks, whether {@link #close()} method will close associated PdfWriter.
      *
-     * @return true, {@link #close()} method is going to close associated PdfWriter, otherwise false.
+     * @return true, {@link #close()} method is going to close associated PdfWriter, otherwise false
      */
     public boolean isCloseWriter() {
         return closeWriter;
@@ -1556,7 +1552,7 @@ public class PdfDocument implements Closeable {
     /**
      * Sets, whether {@link #close()} method shall close associated PdfWriter.
      *
-     * @param closeWriter true, {@link #close()} method shall close associated PdfWriter, otherwise false.
+     * @param closeWriter true, {@link #close()} method shall close associated PdfWriter, otherwise false
      */
     public void setCloseWriter(boolean closeWriter) {
         checkClosingStatus();
@@ -1567,7 +1563,7 @@ public class PdfDocument implements Closeable {
      * Checks, whether {@link #close()} will flush unused objects,
      * e.g. unreachable from PDF Catalog. By default - false.
      *
-     * @return false, if {@link #close()} shall not flush unused objects, otherwise true.
+     * @return false, if {@link #close()} shall not flush unused objects, otherwise true
      */
     public boolean isFlushUnusedObjects() {
         return flushUnusedObjects;
@@ -1577,7 +1573,7 @@ public class PdfDocument implements Closeable {
      * Sets, whether {@link #close()} shall flush unused objects,
      * e.g. unreachable from PDF Catalog.
      *
-     * @param flushUnusedObjects false, if {@link #close()} shall not flush unused objects, otherwise true.
+     * @param flushUnusedObjects false, if {@link #close()} shall not flush unused objects, otherwise true
      */
     public void setFlushUnusedObjects(boolean flushUnusedObjects) {
         checkClosingStatus();
@@ -1588,10 +1584,10 @@ public class PdfDocument implements Closeable {
      * This method returns a complete outline tree of the whole document.
      *
      * @param updateOutlines if the flag is {@code true}, the method reads the whole document and creates outline tree.
-     *                       If the flag is {@code false}, the method gets cached outline tree
-     *                       (if it was cached via calling getOutlines method before).
+     * If the flag is {@code false}, the method gets cached outline tree
+     * (if it was cached via calling getOutlines method before)
      *
-     * @return fully initialize {@link PdfOutline} object.
+     * @return fully initialize {@link PdfOutline} object
      */
     public PdfOutline getOutlines(boolean updateOutlines) {
         checkClosingStatus();
@@ -1609,9 +1605,9 @@ public class PdfDocument implements Closeable {
     /**
      * The method adds new name in the Dests NameTree. It throws an exception, if the name already exists.
      *
-     * @param key   Name of the destination.
-     * @param value An object destination refers to. Must be an array or a dictionary with key /D and array.
-     *              See ISO 32000-1 12.3.2.3 for more info.
+     * @param key Name of the destination
+     * @param value An object destination refers to. Must be an array or a dictionary with key /D and array
+     * See ISO 32000-1 12.3.2.3 for more info
      */
     public void addNamedDestination(String key, PdfObject value) {
         addNamedDestination(new PdfString(key), value);
@@ -1620,14 +1616,14 @@ public class PdfDocument implements Closeable {
     /**
      * The method adds new name in the Dests NameTree. It throws an exception, if the name already exists.
      *
-     * @param key   Name of the destination.
+     * @param key Name of the destination
      * @param value An object destination refers to. Must be an array or a dictionary with key /D and array.
-     *              See ISO 32000-1 12.3.2.3 for more info.
+     * See ISO 32000-1 12.3.2.3 for more info
      */
     public void addNamedDestination(PdfString key, PdfObject value) {
         checkClosingStatus();
         if (value.isArray() && ((PdfArray) value).get(0).isNumber()) {
-            LOGGER.warn(IoLogMessageConstant.INVALID_DESTINATION_TYPE);
+            LOGGER.warn(() -> IoLogMessageConstant.INVALID_DESTINATION_TYPE);
         }
         catalog.addNamedDestination(key, value);
     }
@@ -1652,7 +1648,7 @@ public class PdfDocument implements Closeable {
     /**
      * Gets document trailer.
      *
-     * @return document trailer.
+     * @return document trailer
      */
     public PdfDictionary getTrailer() {
         checkClosingStatus();
@@ -1663,7 +1659,7 @@ public class PdfDocument implements Closeable {
      * Adds {@link PdfOutputIntent} that shall specify the colour characteristics of output devices
      * on which the document might be rendered.
      *
-     * @param outputIntent {@link PdfOutputIntent} to add.
+     * @param outputIntent {@link PdfOutputIntent} to add
      *
      * @see PdfOutputIntent
      */
@@ -1701,8 +1697,8 @@ public class PdfDocument implements Closeable {
     /**
      * Adds file attachment at document level.
      *
-     * @param key name of the destination.
-     * @param fs  {@link PdfFileSpec} object.
+     * @param key name of the destination
+     * @param fs {@link PdfFileSpec} object
      */
     public void addFileAttachment(String key, PdfFileSpec fs) {
         checkClosingStatus();
@@ -1720,13 +1716,13 @@ public class PdfDocument implements Closeable {
      * For associated files their associated file specification dictionaries shall include the AFRelationship key
      *
      * @param description the file description
-     * @param fs          file specification dictionary of associated file
+     * @param fs file specification dictionary of associated file
      *
      * @see PdfDocument#addFileAttachment(String, PdfFileSpec)
      */
     public void addAssociatedFile(String description, PdfFileSpec fs) {
         if (null == ((PdfDictionary) fs.getPdfObject()).get(PdfName.AFRelationship)) {
-            LOGGER.error(IoLogMessageConstant.ASSOCIATED_FILE_SPEC_SHALL_INCLUDE_AFRELATIONSHIP);
+            LOGGER.error(() -> IoLogMessageConstant.ASSOCIATED_FILE_SPEC_SHALL_INCLUDE_AFRELATIONSHIP);
         }
 
         PdfArray afArray = catalog.getPdfObject().getAsArray(PdfName.AF);
@@ -1742,7 +1738,7 @@ public class PdfDocument implements Closeable {
     /**
      * Returns files associated with PDF document.
      *
-     * @return associated files array.
+     * @return associated files array
      */
     public PdfArray getAssociatedFiles() {
         checkClosingStatus();
@@ -1753,7 +1749,7 @@ public class PdfDocument implements Closeable {
      * Gets the encrypted payload of this document,
      * or returns {@code null} if this document isn't an unencrypted wrapper document.
      *
-     * @return encrypted payload of this document.
+     * @return encrypted payload of this document
      */
     public PdfEncryptedPayloadDocument getEncryptedPayloadDocument() {
         if (getReader() != null && getReader().isEncrypted()) {
@@ -1781,7 +1777,7 @@ public class PdfDocument implements Closeable {
                         }
                     }
                 } catch (PdfException e) {
-                    LOGGER.error(e.getMessage());
+                    LOGGER.error(() -> e.getMessage());
                 }
             }
         }
@@ -1793,7 +1789,7 @@ public class PdfDocument implements Closeable {
      * The file spec shall include the AFRelationship key with a value of EncryptedPayload,
      * and shall include an encrypted payload dictionary.
      *
-     * @param fs encrypted payload file spec. {@link PdfEncryptedPayloadFileSpecFactory} can produce one.
+     * @param fs encrypted payload file spec. {@link PdfEncryptedPayloadFileSpecFactory} can produce one
      */
     public void setEncryptedPayload(PdfFileSpec fs) {
         if (getWriter() == null) {
@@ -1804,7 +1800,7 @@ public class PdfDocument implements Closeable {
             throw new PdfException(KernelExceptionMessageConstant.CANNOT_SET_ENCRYPTED_PAYLOAD_TO_ENCRYPTED_DOCUMENT);
         }
         if (!PdfName.EncryptedPayload.equals(((PdfDictionary) fs.getPdfObject()).get(PdfName.AFRelationship))) {
-            LOGGER.error(
+            LOGGER.error(() ->
                     IoLogMessageConstant.ENCRYPTED_PAYLOAD_FILE_SPEC_SHALL_HAVE_AFRELATIONSHIP_FILED_EQUAL_TO_ENCRYPTED_PAYLOAD);
         }
         PdfEncryptedPayload encryptedPayload = PdfEncryptedPayload.extractFrom(fs);
@@ -1814,7 +1810,7 @@ public class PdfDocument implements Closeable {
         }
         PdfCollection collection = getCatalog().getCollection();
         if (collection != null) {
-            LOGGER.warn(IoLogMessageConstant.COLLECTION_DICTIONARY_ALREADY_EXISTS_IT_WILL_BE_MODIFIED);
+            LOGGER.warn(() -> IoLogMessageConstant.COLLECTION_DICTIONARY_ALREADY_EXISTS_IT_WILL_BE_MODIFIED);
         } else {
             collection = new PdfCollection();
             getCatalog().setCollection(collection);
@@ -1892,7 +1888,7 @@ public class PdfDocument implements Closeable {
     /**
      * Indicates if the document has any outlines
      *
-     * @return {@code true}, if there are outlines and {@code false} otherwise.
+     * @return {@code true}, if there are outlines and {@code false} otherwise
      */
     public boolean hasOutlines() {
         return catalog.hasOutlines();
@@ -1911,12 +1907,13 @@ public class PdfDocument implements Closeable {
     /**
      * Create a new instance of {@link PdfFont} or load already created one.
      *
-     * @param dictionary {@link PdfDictionary} that presents {@link PdfFont}.
+     * @param dictionary {@link PdfDictionary} that presents {@link PdfFont}
      *
      * @return instance of {@link PdfFont}
+     *
      * <p>
      * Note, PdfFont which created with {@link PdfFontFactory#createFont(PdfDictionary)} won't be cached
-     * until it will be added to {@link com.itextpdf.kernel.pdf.canvas.PdfCanvas} or {@link PdfResources}.
+     * until it will be added to {@link com.itextpdf.kernel.pdf.canvas.PdfCanvas} or {@link PdfResources}
      */
     public PdfFont getFont(PdfDictionary dictionary) {
         PdfIndirectReference indirectReference = dictionary.getIndirectReference();
@@ -1931,7 +1928,7 @@ public class PdfDocument implements Closeable {
      * Gets default font for the document: Helvetica, WinAnsi.
      * One instance per document.
      *
-     * @return instance of {@link PdfFont} or {@code null} on error.
+     * @return instance of {@link PdfFont} or {@code null} on error
      */
     public PdfFont getDefaultFont() {
         return defaultFontStrategy.getFont();
@@ -1943,7 +1940,7 @@ public class PdfDocument implements Closeable {
      *
      * @param font a {@link PdfFont} instance to add
      *
-     * @return the same PdfFont instance.
+     * @return the same PdfFont instance
      */
     public PdfFont addFont(PdfFont font) {
         font.makeIndirect(this);
@@ -1956,9 +1953,9 @@ public class PdfDocument implements Closeable {
     /**
      * Registers a product for debugging purposes.
      *
-     * @param productData product to be registered.
+     * @param productData product to be registered
      *
-     * @return true if the product hadn't been registered before.
+     * @return true if the product hadn't been registered before
      */
     public boolean registerProduct(final ProductData productData) {
         return this.fingerPrint.registerProduct(productData);
@@ -1977,7 +1974,7 @@ public class PdfDocument implements Closeable {
      * Find {@link PdfFont} from loaded fonts with corresponding fontProgram and encoding or CMAP.
      *
      * @param fontProgram a font name or path to a font program
-     * @param encoding    an encoding or CMAP
+     * @param encoding an encoding or CMAP
      *
      * @return the font instance, or null if font wasn't found
      */
@@ -2036,25 +2033,25 @@ public class PdfDocument implements Closeable {
     /**
      * Save destinations in a temporary storage for further copying.
      *
-     * @param destination        the {@link PdfDestination} to be updated itself.
-     * @param onPageAvailable    a destination consumer that will handle the copying when the
-     *                           destination still resolves, it gets the new destination as input
+     * @param destination the {@link PdfDestination} to be updated itself.
+     * @param onPageAvailable a destination consumer that will handle the copying when the
+     * destination still resolves, it gets the new destination as input
      * @param onPageNotAvailable a destination consumer that will handle the copying when the
-     *                           destination is not available, it gets the original destination
-     *                           as input
+     * destination is not available, it gets the original destination
+     * as input
      */
     protected void storeDestinationToReaddress(PdfDestination destination,
-            Consumer<PdfDestination> onPageAvailable, Consumer<PdfDestination> onPageNotAvailable) {
+                                               Consumer<PdfDestination> onPageAvailable, Consumer<PdfDestination> onPageNotAvailable) {
         pendingDestinationMutations.add(new DestinationMutationInfo(destination, onPageAvailable, onPageNotAvailable));
     }
 
     /**
      * Flush an object.
      *
-     * @param pdfObject     object to flush.
-     * @param canBeInObjStm indicates whether object can be placed into object stream.
+     * @param pdfObject object to flush
+     * @param canBeInObjStm indicates whether object can be placed into object stream
      *
-     * @throws IOException on error.
+     * @throws IOException on error
      */
     protected void flushObject(PdfObject pdfObject, boolean canBeInObjStm) throws IOException {
         boolean flushAllowed = true;
@@ -2075,8 +2072,7 @@ public class PdfDocument implements Closeable {
      * Initializes document.
      *
      * @param newPdfVersion new pdf version of the resultant file if stamper is used and the version needs to be
-     *                      changed,
-     *                      or {@code null} otherwise
+     * changed, or {@code null} otherwise
      */
     protected void open(PdfVersion newPdfVersion) {
         if (properties != null) {
@@ -2132,10 +2128,10 @@ public class PdfDocument implements Closeable {
             }
             xref.initFreeReferencesList(this);
             if (writer != null) {
-                if (writer.properties.addPdfAXmpMetadata != null || writer.properties.addPdfUaXmpMetadata != null ||
-                        writer.properties.addWtpdfXmpMetadata != null) {
-                    pdfConformance = new PdfConformance(writer.properties.addPdfAXmpMetadata,
-                            writer.properties.addPdfUaXmpMetadata, writer.properties.addWtpdfXmpMetadata);
+                //if the writer requested a specific pdf flavour then we need to overwrite the pdfconformance
+                //so that we append the correct xmp metadata on the closing of the document of the requested flavor
+                if (writer.properties.getPdfConformance().conformsToAny()) {
+                    pdfConformance = writer.properties.getPdfConformance();
                 }
                 enableByteArrayWritingMode();
                 if (reader != null && reader.hasXrefStm() && writer.properties.isFullCompression == null) {
@@ -2230,7 +2226,7 @@ public class PdfDocument implements Closeable {
                         // to the
                         // version specified in the header.
 
-                        // So only update the version if it is older than the one in the header
+                        // So only update the version if it is newer than the one in the header
                         if (newPdfVersion.compareTo(reader.headerPdfVersion) > 0) {
                             catalog.put(PdfName.Version, newPdfVersion.toPdfName());
                             catalog.setModified();
@@ -2281,7 +2277,7 @@ public class PdfDocument implements Closeable {
                 setXmpMetadata(xmpMeta);
             }
         } catch (XMPException e) {
-            LOGGER.error(IoLogMessageConstant.EXCEPTION_WHILE_UPDATING_XMPMETADATA, e);
+            LOGGER.error(() -> IoLogMessageConstant.EXCEPTION_WHILE_UPDATING_XMPMETADATA, e);
         }
     }
 
@@ -2290,19 +2286,19 @@ public class PdfDocument implements Closeable {
      *
      * @return the XMPMetadata
      *
-     * @throws XMPException if the file is not well-formed XML or if parsing fails.
+     * @throws XMPException if the file is not well-formed XML or if parsing fails
      */
     protected XMPMeta updateDefaultXmpMetadata() throws XMPException {
         XMPMeta xmpMeta = getXmpMetadata(true);
         XmpMetaInfoConverter.appendDocumentInfoToMetadata(getDocumentInfo(), xmpMeta);
-        PdfConformance.setConformanceToXmp(xmpMeta, pdfConformance);
+        pdfConformance.setConformanceToXmp(xmpMeta);
         return xmpMeta;
     }
 
     /**
      * List all newly added or loaded fonts.
      *
-     * @return List of {@link PdfFont}.
+     * @return List of {@link PdfFont}
      */
     protected Collection<PdfFont> getDocumentFonts() {
         return documentFonts.values();
@@ -2329,8 +2325,8 @@ public class PdfDocument implements Closeable {
     /**
      * Checks page before adding and add.
      *
-     * @param index one-base index of the page.
-     * @param page  {@link PdfPage} to add.
+     * @param index one-base index of the page
+     * @param page {@link PdfPage} to add
      */
     protected void checkAndAddPage(int index, PdfPage page) {
         if (page.isFlushed()) {
@@ -2350,7 +2346,7 @@ public class PdfDocument implements Closeable {
     /**
      * Checks page before adding.
      *
-     * @param page {@link PdfPage} to add.
+     * @param page {@link PdfPage} to add
      */
     protected void checkAndAddPage(PdfPage page) {
         if (page.isFlushed()) {
@@ -2366,7 +2362,7 @@ public class PdfDocument implements Closeable {
     }
 
     /**
-     * checks whether a method is invoked at the closed document
+     * Checks whether a method is invoked at the closed document.
      */
     protected void checkClosingStatus() {
         if (closed) {
@@ -2398,14 +2394,14 @@ public class PdfDocument implements Closeable {
         } catch (Exception e) {
             structTreeRoot = null;
             structParentIndex = -1;
-            LOGGER.error(IoLogMessageConstant.TAG_STRUCTURE_INIT_FAILED, e);
+            LOGGER.error(() -> IoLogMessageConstant.TAG_STRUCTURE_INIT_FAILED, e);
         }
     }
 
     /**
      * Gets list of indirect references.
      *
-     * @return list of indirect references.
+     * @return list of indirect references
      */
     PdfXrefTable getXref() {
         return xref;
@@ -2464,7 +2460,7 @@ public class PdfDocument implements Closeable {
     /**
      * Removes all widgets associated with a given page from AcroForm structure. Widgets can be either pure or merged.
      *
-     * @param page to remove from.
+     * @param page to remove from
      */
     private void removeUnusedWidgetsFromFields(PdfPage page) {
         if (page.isFlushed()) {
@@ -2480,7 +2476,10 @@ public class PdfDocument implements Closeable {
                 ((PdfWidgetAnnotation) annot).releaseFormFieldFromWidgetAnnotation();
                 if (fields != null) {
                     fields.remove(annot.getPdfObject());
+                    fields.setModified();
                 }
+
+                acroForm.setModified();
             }
         }
     }
@@ -2503,7 +2502,7 @@ public class PdfDocument implements Closeable {
     /**
      * This method copies all given outlines
      *
-     * @param outlines   outlines to be copied
+     * @param outlines outlines to be copied
      * @param toDocument document where outlines should be copied
      */
     private void copyOutlines(Set<PdfOutline> outlines, PdfDocument toDocument, Map<PdfPage, PdfPage> page2page) {
@@ -2526,7 +2525,7 @@ public class PdfDocument implements Closeable {
     /**
      * This method gets all outlines to be copied including parent outlines
      *
-     * @param outline        current outline
+     * @param outline current outline
      * @param outlinesToCopy a Set of outlines to be copied
      */
     private void getAllOutlinesToCopy(PdfOutline outline, Set<PdfOutline> outlinesToCopy) {
@@ -2544,11 +2543,11 @@ public class PdfDocument implements Closeable {
      * This method copies create new outlines in the Document to copy.
      *
      * @param outlinesToCopy - Set of outlines to be copied
-     * @param newParent      - new parent outline
-     * @param oldParent      - old parent outline
+     * @param newParent - new parent outline
+     * @param oldParent - old parent outline
      */
     private void cloneOutlines(Set<PdfOutline> outlinesToCopy, PdfOutline newParent, PdfOutline oldParent,
-            Map<PdfPage, PdfPage> page2page, PdfDocument toDocument) {
+                               Map<PdfPage, PdfPage> page2page, PdfDocument toDocument) {
         if (null == oldParent) {
             return;
         }
@@ -2625,18 +2624,18 @@ public class PdfDocument implements Closeable {
 
     private void processReadingError(String errorMessage) {
         if (StrictnessLevel.CONSERVATIVE.isStricter(reader.getStrictnessLevel())) {
-            LOGGER.error(errorMessage);
+            LOGGER.error(() -> errorMessage);
         } else {
             throw new PdfException(errorMessage);
         }
     }
 
     private static void overrideFullCompressionInWriterProperties(WriterProperties properties,
-            boolean readerHasXrefStream) {
+                                                                  boolean readerHasXrefStream) {
         if (Boolean.TRUE == properties.isFullCompression && !readerHasXrefStream) {
-            LOGGER.warn(KernelLogMessageConstant.FULL_COMPRESSION_APPEND_MODE_XREF_TABLE_INCONSISTENCY);
+            LOGGER.warn(() -> KernelLogMessageConstant.FULL_COMPRESSION_APPEND_MODE_XREF_TABLE_INCONSISTENCY);
         } else if (Boolean.FALSE == properties.isFullCompression && readerHasXrefStream) {
-            LOGGER.warn(KernelLogMessageConstant.FULL_COMPRESSION_APPEND_MODE_XREF_STREAM_INCONSISTENCY);
+            LOGGER.warn(() -> KernelLogMessageConstant.FULL_COMPRESSION_APPEND_MODE_XREF_STREAM_INCONSISTENCY);
         }
         properties.isFullCompression = readerHasXrefStream;
     }
@@ -2647,7 +2646,8 @@ public class PdfDocument implements Closeable {
         private final Consumer<PdfDestination> onDestinationNotAvailable;
 
         public DestinationMutationInfo(PdfDestination originalDestination,
-                Consumer<PdfDestination> onDestinationAvailable, Consumer<PdfDestination> onDestinationNotAvailable) {
+                                       Consumer<PdfDestination> onDestinationAvailable,
+                                       Consumer<PdfDestination> onDestinationNotAvailable) {
             this.originalDestination = originalDestination;
             this.onDestinationAvailable = onDestinationAvailable;
             this.onDestinationNotAvailable = onDestinationNotAvailable;

@@ -165,12 +165,12 @@ public final class KernelExceptionMessageConstant {
     public static final String DOCUMENT_HAS_NO_PDF_CATALOG_OBJECT = "Document has no PDF Catalog object.";
     public static final String DOCUMENT_SHALL_CONTAIN_VALID_LANG_ENTRY = "Document does not contain valid lang entry.";
     public static final String DURING_DECOMPRESSION_MULTIPLE_STREAMS_IN_SUM_OCCUPIED_MORE_MEMORY_THAN_ALLOWED = ""
-            + "During decompression multiple streams in sum occupied more memory than allowed. Please either check "
-            + "your pdf or increase the allowed single decompressed pdf stream maximum size value by setting "
+            + "During decompression multiple streams in sum occupied more memory than allowed ({0}). Please either check "
+            + "your pdf or increase the allowed multiple decompressed pdf streams maximum size value by setting "
             + "the appropriate parameter of ReaderProperties's MemoryLimitsAwareHandler.";
     public static final String DURING_DECOMPRESSION_SINGLE_STREAM_OCCUPIED_MORE_MEMORY_THAN_ALLOWED = "During "
-            + "decompression a single stream occupied more memory than allowed. Please either check your pdf or "
-            + "increase the allowed multiple decompressed pdf streams maximum size value by setting the appropriate "
+            + "decompression a single stream occupied more memory than allowed ({0}). Please either check your pdf or "
+            + "increase the allowed single decompressed pdf stream maximum size value by setting the appropriate "
             + "parameter of ReaderProperties's MemoryLimitsAwareHandler.";
     public static final String DURING_DECOMPRESSION_SINGLE_STREAM_OCCUPIED_MORE_THAN_MAX_INTEGER_VALUE = "During "
             + "decompression a single stream occupied more than a maximum integer value. Please check your pdf.";
@@ -210,7 +210,8 @@ public final class KernelExceptionMessageConstant {
     public static final String FONT_AND_SIZE_MUST_BE_SET_BEFORE_WRITING_ANY_TEXT = "Font and size must be set before "
             + "writing any text.";
     public static final String FONT_EMBEDDING_ISSUE = "Font embedding issue.";
-    public static final String FORM_XOBJECT_MUST_HAVE_BBOX = "Form XObject must have BBox.";
+    public static final String FORM_XOBJECT_MUST_HAVE_BBOX = "Form XObject must have a bounding box.";
+    public static final String FORM_XOBJECT_HAS_CIRCULAR_REFERENCES = "Form XObject {0} {1} R has circular references.";
     public static final String FUCTIONFACTORY_INVALID_FUNCTION_TYPE = "Invalid function type {0}";
     public static final String FUCTIONFACTORY_INVALID_OBJECT_TYPE =
             "Invalid object type, a function must be either a Dictionary or a Stream";
@@ -220,6 +221,7 @@ public final class KernelExceptionMessageConstant {
             "Invalid object type, a function type 4 requires a stream object";
     public static final String FUNCTION_IS_NOT_COMPATIBLE_WITH_COLOR_SPACE = "Function is not compatible with "
             + "ColorSpace.";
+    @Deprecated
     public static final String FUNCTION_NOT_SET = "The output size depends on the functions, but no function is"
             + " set yet.";
     public static final String GET_IMAGEBYTES_FOR_SEPARATION_COLOR_ONLY_SUPPORTS_RGB =
@@ -489,8 +491,10 @@ public final class KernelExceptionMessageConstant {
             + "arguments";
     public static final String XMP_METADATA_HEADER_SHALL_CONTAIN_VERSION_IDENTIFIER_PART = "XMP metadata header shall"
             + " contain version identifier pdfaid:part with value {0} instead of {1}.";
-    public static final String XMP_METADATA_HEADER_SHALL_CONTAIN_WTPDF_METADATA = "XMP metadata header shall"
-            + " contain declaration for Well Tagged PDF For Accessibility.";
+    public static final String XMP_METADATA_HEADER_SHALL_CONTAIN_WTPDF_ACCESSIBILITY_METADATA =
+            "XMP metadata header shall contain declaration for Well Tagged PDF For Accessibility.";
+    public static final String XMP_METADATA_HEADER_SHALL_CONTAIN_WTPDF_REUSE_METADATA =
+            "XMP metadata header shall contain declaration for Well Tagged PDF For Reuse.";
     public static final String XMP_METADATA_HEADER_SHALL_CONTAIN_VERSION_IDENTIFIER_REV = "XMP metadata header shall"
             + " contain version identifier pdfaid:rev with four digit integer value";
     public static final String XOBJECT_STRUCT_PARENT_INDEX_MISSED = "XObject has no StructParents index in its stream.";

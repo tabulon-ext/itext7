@@ -26,6 +26,7 @@ import com.itextpdf.bouncycastleconnector.BouncyCastleFactoryCreator;
 import com.itextpdf.commons.bouncycastle.IBouncyCastleFactory;
 import com.itextpdf.commons.bouncycastle.operator.AbstractOperatorCreationException;
 import com.itextpdf.commons.bouncycastle.pkcs.AbstractPKCSException;
+import com.itextpdf.commons.logs.LazyLogger;
 import com.itextpdf.commons.utils.FileUtil;
 import com.itextpdf.forms.fields.properties.SignedAppearanceText;
 import com.itextpdf.forms.form.element.SignatureFieldAppearance;
@@ -57,7 +58,7 @@ import com.itextpdf.test.ExtendedITextTest;
 import com.itextpdf.test.TestUtil;
 import com.itextpdf.test.annotations.LogMessage;
 import com.itextpdf.test.annotations.LogMessages;
-import com.itextpdf.test.pdfa.VeraPdfValidator; // Android-Conversion-Skip-Line (TODO DEVSIX-7377 introduce pdf/ua validation on Android)
+import com.itextpdf.test.pdfa.VeraPdfValidator; 
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -73,8 +74,6 @@ import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 @Tag("IntegrationTest")
 public class PdfUASignerTest extends ExtendedITextTest {
@@ -85,7 +84,7 @@ public class PdfUASignerTest extends ExtendedITextTest {
     private static final String SOURCE_FOLDER = "./src/test/resources/com/itextpdf/signatures/sign/PdfUASignerTest/";
 
     private static final String FONT = "./src/test/resources/com/itextpdf/signatures/font/FreeSans.ttf";
-    private static final Logger logger = LoggerFactory.getLogger(PdfUASignerTest.class);
+    private static final LazyLogger LOGGER = new LazyLogger(PdfUASignerTest.class);
 
     public static final String CERTIFICATE_FOLDER = "./src/test/resources/com/itextpdf/signatures/certs/";
     private static final char[] PASSWORD = "testpassphrase".toCharArray();
@@ -114,7 +113,7 @@ public class PdfUASignerTest extends ExtendedITextTest {
             appearance.getAccessibilityProperties().setAlternateDescription("Some alternate description");
             signer.getSignerProperties().setSignatureAppearance(appearance);
         });
-        Assertions.assertNull(new VeraPdfValidator().validate(outPdf)); // Android-Conversion-Skip-Line (TODO DEVSIX-7377 introduce pdf\a validation on Android)
+        Assertions.assertNull(new VeraPdfValidator().validate(outPdf)); 
     }
 
     @Test
@@ -135,7 +134,7 @@ public class PdfUASignerTest extends ExtendedITextTest {
                     .setPageRect(new Rectangle(36, 648, 200, 100))
                     .setSignatureAppearance(appearance);
         });
-        Assertions.assertNull(new VeraPdfValidator().validate(outPdf)); // Android-Conversion-Skip-Line (TODO DEVSIX-7377 introduce pdf\a validation on Android)
+        Assertions.assertNull(new VeraPdfValidator().validate(outPdf)); 
     }
 
     @Test
@@ -187,7 +186,7 @@ public class PdfUASignerTest extends ExtendedITextTest {
             appearance.getAccessibilityProperties().setAlternateDescription("Some alternate description");
             signer.getSignerProperties().setSignatureAppearance(appearance);
         });
-        Assertions.assertNull(new VeraPdfValidator().validate(outPdf)); // Android-Conversion-Skip-Line (TODO DEVSIX-7377 introduce pdf\a validation on Android)
+        Assertions.assertNull(new VeraPdfValidator().validate(outPdf)); 
     }
 
     @Test
@@ -198,7 +197,7 @@ public class PdfUASignerTest extends ExtendedITextTest {
             SignatureFieldAppearance appearance = new SignatureFieldAppearance(SignerProperties.IGNORED_ID);
             signer.getSignerProperties().setSignatureAppearance(appearance);
         });
-        Assertions.assertNull(new VeraPdfValidator().validate(outPdf)); // Android-Conversion-Skip-Line (TODO DEVSIX-7377 introduce pdf\a validation on Android)
+        Assertions.assertNull(new VeraPdfValidator().validate(outPdf)); 
     }
 
     @Test
@@ -216,7 +215,7 @@ public class PdfUASignerTest extends ExtendedITextTest {
                     .setPageRect(new Rectangle(36, 648, 200, 100))
                     .setSignatureAppearance(appearance);
         });
-        new VeraPdfValidator().validateFailure(outPdf); // Android-Conversion-Skip-Line (TODO DEVSIX-7377 introduce pdf\a validation on Android)
+        new VeraPdfValidator().validateFailure(outPdf); 
     }
 
 
@@ -235,7 +234,7 @@ public class PdfUASignerTest extends ExtendedITextTest {
                     .setPageRect(new Rectangle(36, 648, 200, 100))
                     .setSignatureAppearance(appearance);
         });
-        Assertions.assertNull(new VeraPdfValidator().validate(outPdf)); // Android-Conversion-Skip-Line (TODO DEVSIX-7377 introduce pdf\a validation on Android)
+        Assertions.assertNull(new VeraPdfValidator().validate(outPdf)); 
     }
 
     @Test
@@ -255,7 +254,7 @@ public class PdfUASignerTest extends ExtendedITextTest {
                     .setPageRect(new Rectangle(36, 648, 200, 100))
                     .setSignatureAppearance(appearance);
         });
-        new VeraPdfValidator().validateFailure(outPdf); // Android-Conversion-Skip-Line (TODO DEVSIX-7377 introduce pdf\a validation on Android)
+        new VeraPdfValidator().validateFailure(outPdf); 
     }
 
     @Test
@@ -299,7 +298,7 @@ public class PdfUASignerTest extends ExtendedITextTest {
                     .setPageRect(new Rectangle(36, 648, 200, 200))
                     .setSignatureAppearance(appearance);
         });
-        new VeraPdfValidator().validate(outPdf); // Android-Conversion-Skip-Line (TODO DEVSIX-7377 introduce pdf\a validation on Android)
+        new VeraPdfValidator().validate(outPdf); 
     }
 
     @Test
@@ -327,7 +326,7 @@ public class PdfUASignerTest extends ExtendedITextTest {
                     .setSignatureAppearance(appearance);
         });
         // TODO DEVSIX-9060 Image that is in Div element is not rendered in signature
-        new VeraPdfValidator().validate(outPdf); // Android-Conversion-Skip-Line (TODO DEVSIX-7377 introduce pdf\a validation on Android)
+        new VeraPdfValidator().validate(outPdf); 
     }
 
     @Test
@@ -349,7 +348,7 @@ public class PdfUASignerTest extends ExtendedITextTest {
                     .setPageRect(new Rectangle(36, 648, 200, 50))
                     .setSignatureAppearance(appearance);
         });
-        new VeraPdfValidator().validate(outPdf); // Android-Conversion-Skip-Line (TODO DEVSIX-7377 introduce pdf\a validation on Android)
+        new VeraPdfValidator().validate(outPdf); 
     }
 
 
@@ -385,7 +384,7 @@ public class PdfUASignerTest extends ExtendedITextTest {
 
         signingAction.accept(signer);
         signer.signDetached(new BouncyCastleDigest(), pks, signChain, null, null, null, 0, PdfSigner.CryptoStandard.CADES);
-        logger.info("Out pdf: " + UrlUtil.getNormalizedFileUriString(outPdf));
+        LOGGER.info(() -> "Out pdf: " + UrlUtil.getNormalizedFileUriString(outPdf));
         return outPdf;
     }
 
@@ -404,7 +403,7 @@ public class PdfUASignerTest extends ExtendedITextTest {
         signingAction.accept(signer);
         signer.signDetached(new BouncyCastleDigest(), pks, signChain, null, null, null, 0, PdfSigner.CryptoStandard.CADES);
 
-        logger.info("Out pdf: " + UrlUtil.getNormalizedFileUriString(outPdf));
+        LOGGER.info(() -> "Out pdf: " + UrlUtil.getNormalizedFileUriString(outPdf));
         return outPdf;
     }
 

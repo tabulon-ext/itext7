@@ -22,6 +22,7 @@
  */
 package com.itextpdf.kernel.utils;
 
+import com.itextpdf.commons.utils.FileUtil;
 import com.itextpdf.commons.utils.SystemUtil;
 import com.itextpdf.io.exceptions.IoExceptionMessageConstant;
 import com.itextpdf.io.font.constants.StandardFonts;
@@ -45,6 +46,10 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import javax.xml.parsers.ParserConfigurationException;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.Assertions;
@@ -104,6 +109,37 @@ public class CompareToolTest extends ExtendedITextTest {
         Assertions.assertTrue(
                 compareTool.compareXmls(destinationFolder + "tagged_pdf.report.xml", sourceFolder + "cmp_report02.xml"),
                 "CompareTool report differs from the reference one");
+    }
+
+    @Test
+    public void compareTagStructureAgainstXmlNegative()
+            throws IOException, ParserConfigurationException, SAXException {
+        CompareTool compareTool = new CompareTool();
+        compareTool.setCompareByContentErrorsLimit(10);
+        compareTool.setGenerateCompareByContentXmlReport(true);
+        String outRefPdf = sourceFolder + "tagged_pdf.pdf";
+        String outPdf = destinationFolder + "tagged_pdf.pdf";
+        FileUtil.copy(outRefPdf, outPdf);
+        String cmpPdf = sourceFolder + "cmp_tagged_xml_neg.xml";
+        String result = compareTool.compareTagStructureAgainstXml(outPdf, cmpPdf);
+        System.out.println("\nRESULT:\n" + result);
+        Assertions.assertNotNull(result, "CompareTool must return differences found between the files");
+        Assertions.assertTrue(result.contains("The tag structures are different."));
+    }
+
+    @Test
+    public void compareTagStructureAgainstXmlPositive()
+            throws IOException, ParserConfigurationException, SAXException {
+        CompareTool compareTool = new CompareTool();
+        compareTool.setCompareByContentErrorsLimit(10);
+        compareTool.setGenerateCompareByContentXmlReport(true);
+        String outRefPdf = sourceFolder + "tagged_pdf.pdf";
+        String outPdf = destinationFolder + "tagged_pdf.pdf";
+        FileUtil.copy(outRefPdf, outPdf);
+        String cmpXml = sourceFolder + "cmp_tagged_xml_pos.xml";
+        String result = compareTool.compareTagStructureAgainstXml(outPdf, cmpXml);
+        System.out.println("\nRESULT:\n" + result);
+        Assertions.assertNull(result);
     }
 
     @Test
@@ -176,11 +212,11 @@ public class CompareToolTest extends ExtendedITextTest {
     }
 
     @Test
-    public void gsEnvironmentVariableSpecifiedIncorrectlyTest() throws IOException, InterruptedException {
+    public void gsEnvironmentVariableSpecifiedIncorrectlyTest() {
         String outPdf = sourceFolder + "simple_pdf.pdf";
         String cmpPdf = sourceFolder + "cmp_simple_pdf.pdf";
 
-        Exception e = Assertions.assertThrows(CompareTool.CompareToolExecutionException.class,
+        Exception e = Assertions.assertThrows(RuntimeException.class,
                 () -> new CompareTool("unspecified", null).compareVisually(outPdf, cmpPdf, destinationFolder, "diff_")
         );
         Assertions.assertEquals(IoExceptionMessageConstant.GS_ENVIRONMENT_VARIABLE_IS_NOT_SPECIFIED, e.getMessage());
@@ -292,14 +328,12 @@ public class CompareToolTest extends ExtendedITextTest {
     public void convertDocInfoToStringsTest() throws IOException {
         String inPdf = sourceFolder + "test.pdf";
 
-        class TestCompareTool extends CompareTool {
+        CompareTool compareTool = new CompareTool() {
             @Override
             protected String[] convertDocInfoToStrings(PdfDocumentInfo info) {
                 return super.convertDocInfoToStrings(info);
             }
-        }
-
-        CompareTool compareTool = new TestCompareTool();
+        };
         try (PdfReader reader = new PdfReader(inPdf, compareTool.getOutReaderProperties());
                 PdfDocument doc = new PdfDocument(reader)) {
             String[] docInfo = compareTool.convertDocInfoToStrings(doc.getDocumentInfo());
@@ -308,7 +342,7 @@ public class CompareToolTest extends ExtendedITextTest {
             Assertions.assertEquals("test file", docInfo[2]);
             Assertions.assertEquals("new job", docInfo[3]);
             Assertions.assertEquals("Adobe Acrobat Pro DC (64-bit) <version>", docInfo[4]);
-                }
+        }
     }
 
     @Test
@@ -333,6 +367,24 @@ public class CompareToolTest extends ExtendedITextTest {
         Assertions.assertNull(new CompareTool().compareByContent(firstPdf, secondPdf, destinationFolder));
         Assertions.assertFalse(new File(firstPdf).exists());
         Assertions.assertFalse(new File(secondPdf).exists());
+    }
+
+    @Test
+    public void compareByContentCleansUpOutPdfFromMemoryTest() throws InterruptedException, IOException {
+        String firstPdf = destinationFolder + "compareByContentCleansUpOutPdfFromMemoryTest.pdf";
+        String secondPdf = destinationFolder + "compareByContentCleansUpOutPdfFromMemoryTest2.pdf";
+        PdfDocument firstDocument = new PdfDocument(CompareTool.createTestPdfWriter(firstPdf));
+        PdfDocument secondDocument = new PdfDocument(CompareTool.createTestPdfWriter(secondPdf));
+
+        firstDocument.addNewPage();
+        firstDocument.close();
+
+        secondDocument.addNewPage();
+        secondDocument.close();
+
+        Assertions.assertNotNull(MemoryFirstPdfWriter.get(firstPdf));
+        Assertions.assertNull(new CompareTool().compareByContent(firstPdf, secondPdf, destinationFolder));
+        Assertions.assertNull(MemoryFirstPdfWriter.get(firstPdf));
     }
 
     @Test
@@ -401,5 +453,44 @@ public class CompareToolTest extends ExtendedITextTest {
         Assertions.assertNotNull("CompareTool must return differences found between the files", result);
         String xmlReport = new String(Files.readAllBytes(Paths.get(destinationFolder + "basefont_absence.report.xml")));
         Assertions.assertTrue(xmlReport.contains("PdfDictionary /BaseFont entry: Expected: /Helvetica-Bold+ASAFAS. Found: null"));
+    }
+
+    @Test
+    public void compareVisuallyWithFuzzValueTest() throws IOException, InterruptedException {
+        String outPdf = sourceFolder + "fuzz.pdf";
+        String cmpPdf = sourceFolder + "cmp_fuzz.pdf";
+        String outPath = destinationFolder + "compareVisuallyWithFuzzValueTest/";
+
+        CompareTool compareTool = new CompareTool();
+
+        Assertions.assertNotNull(compareTool.compareVisually(outPdf, cmpPdf, outPath, 0));
+        Assertions.assertNotNull(compareTool.compareVisually(outPdf, cmpPdf, outPath, 3));
+        Assertions.assertNull(compareTool.compareVisually(outPdf, cmpPdf, outPath, 15));
+    }
+
+    @Test
+    public void compareVisuallyWithFuzzAndIgnoredAreasTest() throws IOException, InterruptedException {
+        String outPdf = sourceFolder + "fuzzAndIgnoredAreas.pdf";
+        String cmpPdf = sourceFolder + "cmp_fuzzAndIgnoredAreas.pdf";
+        String outPath = destinationFolder + "compareVisuallyWithFuzzValueTest/";
+        Map<Integer, List<Rectangle>> ignoredAreas = new HashMap<Integer, List<Rectangle>>();
+        ignoredAreas.put(1, Arrays.asList(new Rectangle(300, 0, 295, 842)));
+
+        CompareTool compareTool = new CompareTool();
+
+        Assertions.assertNotNull(compareTool.compareVisually(outPdf, cmpPdf, outPath, 0));
+        Assertions.assertNull(compareTool.compareVisually(outPdf, cmpPdf, outPath, 0.8));
+        Assertions.assertNull(compareTool.compareVisually(outPdf, cmpPdf, outPath, null,  ignoredAreas, 0.4));
+    }
+
+    @Test
+    public void compareToolWithStreamToleranceTest()
+            throws InterruptedException, IOException {
+        String outPdf = sourceFolder + "tolerance1.pdf";
+        String cmpPdf = sourceFolder + "tolerance2.pdf";
+        Assertions.assertNull(new CompareTool().setContentStreamFloatTolerance(0.02f)
+                .compareByContent(outPdf, cmpPdf, destinationFolder));
+
+        Assertions.assertNotNull(new CompareTool().compareByContent(outPdf, cmpPdf, destinationFolder));
     }
 }

@@ -22,6 +22,7 @@
  */
 package com.itextpdf.pdfa.checker;
 
+import com.itextpdf.commons.logs.LazyLogger;
 import com.itextpdf.commons.utils.MessageFormatUtil;
 import com.itextpdf.forms.fields.PdfFormField;
 import com.itextpdf.io.font.PdfEncodings;
@@ -66,8 +67,6 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * PdfA1Checker defines the requirements of the PDF/A-1 standard and contains
@@ -115,7 +114,7 @@ public class PdfA1Checker extends PdfAChecker {
                     PdfName.Saturation)));
     private static final int MAX_NUMBER_OF_DEVICEN_COLOR_COMPONENTS = 8;
 
-    private static final Logger logger = LoggerFactory.getLogger(PdfAChecker.class);
+    private static final LazyLogger LOGGER = new LazyLogger(PdfAChecker.class);
 
     /**
      * Creates a PdfA1Checker with the required conformance
@@ -369,21 +368,28 @@ public class PdfA1Checker extends PdfAChecker {
     @Override
     protected void checkContentStream(PdfStream contentStream, PdfResources resources) {
         if (isFullCheckMode() || contentStream.isModified()) {
-            byte[] contentBytes = contentStream.getBytes();
-            PdfTokenizer tokenizer = new PdfTokenizer(
-                    new RandomAccessFileOrArray(new RandomAccessSourceFactory().createSource(contentBytes)));
+            checkContentStream(contentStream.getBytes(), resources);
+        }
+    }
 
-            PdfCanvasParser parser = new PdfCanvasParser(tokenizer, resources);
-            List<PdfObject> operands = new ArrayList<>();
-            try {
-                while (parser.parse(operands).size() > 0) {
-                    for (PdfObject operand : operands) {
-                        checkContentStreamObject(operand);
-                    }
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    protected void checkContentStream(byte[] streamContent, PdfResources resources) {
+        PdfTokenizer tokenizer = new PdfTokenizer(
+                new RandomAccessFileOrArray(new RandomAccessSourceFactory().createSource(streamContent)));
+
+        PdfCanvasParser parser = new PdfCanvasParser(tokenizer, resources);
+        List<PdfObject> operands = new ArrayList<>();
+        try {
+            while (parser.parse(operands).size() > 0) {
+                for (PdfObject operand : operands) {
+                    checkContentStreamObject(operand);
                 }
-            } catch (IOException e) {
-                throw new PdfException(PdfaExceptionMessageConstant.CANNOT_PARSE_CONTENT_STREAM, e);
             }
+        } catch (IOException e) {
+            throw new PdfException(PdfaExceptionMessageConstant.CANNOT_PARSE_CONTENT_STREAM, e);
         }
     }
 
@@ -473,7 +479,7 @@ public class PdfA1Checker extends PdfAChecker {
                 throw new PdfAConformanceException(PdfaExceptionMessageConstant.A_CATALOG_SHALL_INCLUDE_MARK_INFO_DICTIONARY_WITH_MARKED_TRUE_VALUE);
             }
             if (!catalog.containsKey(PdfName.Lang)) {
-                logger.warn(PdfAConformanceLogMessageConstant.CATALOG_SHOULD_CONTAIN_LANG_ENTRY);
+                LOGGER.warn(() -> PdfAConformanceLogMessageConstant.CATALOG_SHOULD_CONTAIN_LANG_ENTRY);
             }
         }
     }
@@ -624,6 +630,19 @@ public class PdfA1Checker extends PdfAChecker {
      * {@inheritDoc}
      */
     @Override
+    protected void checkFileSpecEmbeddedStream(PdfStream embeddedFile) {
+        // This method is intended to verify file's specification EF->F stream.
+        // Throw an exception since EF is forbidden for PDF/A-1.
+        if (embeddedFile != null) {
+            throw new PdfAConformanceException(
+                    PdfaExceptionMessageConstant.FILE_SPECIFICATION_DICTIONARY_SHALL_NOT_CONTAIN_THE_EF_KEY);
+        }
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
     protected void checkAnnotation(PdfDictionary annotDic) {
         PdfName subtype = annotDic.getAsName(PdfName.Subtype);
 
@@ -683,7 +702,7 @@ public class PdfA1Checker extends PdfAChecker {
 
         if (checkStructure(conformance)) {
             if (contentAnnotations.contains(subtype) && !annotDic.containsKey(PdfName.Contents)) {
-                logger.warn(MessageFormatUtil.format(
+                LOGGER.warn(() -> MessageFormatUtil.format(
                         PdfAConformanceLogMessageConstant.ANNOTATION_OF_TYPE_0_SHOULD_HAVE_CONTENTS_KEY, subtype.getValue()));
             }
         }

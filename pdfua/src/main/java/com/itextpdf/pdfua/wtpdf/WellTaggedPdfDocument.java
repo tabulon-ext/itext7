@@ -22,6 +22,7 @@
  */
 package com.itextpdf.pdfua.wtpdf;
 
+import com.itextpdf.commons.logs.LazyLogger;
 import com.itextpdf.commons.utils.MessageFormatUtil;
 import com.itextpdf.kernel.contrast.ColorContrastChecker;
 import com.itextpdf.kernel.pdf.DocumentProperties;
@@ -41,8 +42,6 @@ import com.itextpdf.kernel.validation.ValidationContainer;
 import com.itextpdf.layout.tagging.ProhibitedTagRelationsResolver;
 import com.itextpdf.pdfua.PdfUAPageFactory;
 import com.itextpdf.pdfua.logs.PdfUALogMessageConstants;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -53,13 +52,13 @@ import java.util.List;
  * It will add necessary validation to guide the user to create a Well Tagged compliant document.
  */
 public class WellTaggedPdfDocument extends PdfDocument {
-    private static final Logger LOGGER = LoggerFactory.getLogger(WellTaggedPdfDocument.class);
+    private static final LazyLogger LOGGER = new LazyLogger(WellTaggedPdfDocument.class);
 
     /**
      * Creates a WellTaggedPdfDocument instance.
      *
-     * @param writer The writer to write the PDF document.
-     * @param config The configuration for the Well Tagged document.
+     * @param writer The writer to write the PDF document
+     * @param config The configuration for the Well Tagged document
      */
     public WellTaggedPdfDocument(PdfWriter writer, WellTaggedPdfConfig config) {
         this(writer, new DocumentProperties(), config);
@@ -68,9 +67,9 @@ public class WellTaggedPdfDocument extends PdfDocument {
     /**
      * Creates a WellTaggedPdfDocument instance.
      *
-     * @param writer     The writer to write the PDF document.
-     * @param properties The properties for the PDF document.
-     * @param config     The configuration for the Well Tagged document.
+     * @param writer     The writer to write the PDF document
+     * @param properties The properties for the PDF document
+     * @param config     The configuration for the Well Tagged document
      */
     public WellTaggedPdfDocument(PdfWriter writer, DocumentProperties properties, WellTaggedPdfConfig config) {
         super(configureWriterProperties(writer, config.getConformance()), properties);
@@ -78,7 +77,7 @@ public class WellTaggedPdfDocument extends PdfDocument {
 
         setupWtpdfConfiguration(config);
         final ValidationContainer validationContainer = new ValidationContainer();
-        final List<IValidationChecker> checkers = createCheckers();
+        final List<IValidationChecker> checkers = createCheckers(this.pdfConformance);
         for (IValidationChecker checker : checkers) {
             validationContainer.addChecker(checker);
         }
@@ -90,9 +89,9 @@ public class WellTaggedPdfDocument extends PdfDocument {
     /**
      * Creates a WellTaggedPdfDocument instance.
      *
-     * @param reader The reader to read the PDF document.
-     * @param writer The writer to write the PDF document.
-     * @param config The configuration for the Well Tagged document.
+     * @param reader The reader to read the PDF document
+     * @param writer The writer to write the PDF document
+     * @param config The configuration for the Well Tagged document
      */
     public WellTaggedPdfDocument(PdfReader reader, PdfWriter writer, WellTaggedPdfConfig config) {
         this(reader, writer, new StampingProperties(), config);
@@ -101,22 +100,21 @@ public class WellTaggedPdfDocument extends PdfDocument {
     /**
      * Creates a WellTaggedPdfDocument instance.
      *
-     * @param reader     The reader to read the PDF document.
-     * @param writer     The writer to write the PDF document.
-     * @param properties The properties for the PDF document.
-     * @param config     The configuration for the Well Tagged document.
+     * @param reader     The reader to read the PDF document
+     * @param writer     The writer to write the PDF document
+     * @param properties The properties for the PDF document
+     * @param config     The configuration for the Well Tagged document
      */
     public WellTaggedPdfDocument(PdfReader reader, PdfWriter writer, StampingProperties properties,
-                                 WellTaggedPdfConfig config) {
+            WellTaggedPdfConfig config) {
         super(reader, writer, properties);
         if (!getConformance().isWtpdf()) {
-            LOGGER.warn(PdfUALogMessageConstants.PDF_TO_WTPDF_CONVERSION_IS_NOT_SUPPORTED);
+            LOGGER.warn(() -> PdfUALogMessageConstants.PDF_TO_WTPDF_CONVERSION_IS_NOT_SUPPORTED);
         }
-
         setupWtpdfConfiguration(config);
 
         final ValidationContainer validationContainer = new ValidationContainer();
-        final List<IValidationChecker> checkers = createCheckers();
+        final List<IValidationChecker> checkers = createCheckers(new PdfConformance(config.getConformance()));
         for (IValidationChecker checker : checkers) {
             validationContainer.addChecker(checker);
         }
@@ -128,12 +126,20 @@ public class WellTaggedPdfDocument extends PdfDocument {
      * Creates a list of {@link IValidationChecker} for Well Tagged conformance.
      * If you want to enable/disable specific checks, you can override the implementation.
      *
+     * @param conformance the Well Tagged PDF conformance for which the checkers should be created
+     *
      * @return list of Well Tagged related checkers
      */
-    protected List<IValidationChecker> createCheckers() {
+    protected List<IValidationChecker> createCheckers(PdfConformance conformance) {
         List<IValidationChecker> checkers = new ArrayList<>();
         final ColorContrastChecker contrastChecker = new ColorContrastChecker(false, false);
-        checkers.add(new WellTaggedPdfChecker(this));
+        //Currently if both accessibility and reuse are enabled we only add accessibility checker as it fully covers
+        //reuse checker, but in the future this could change.
+        if (conformance.conformsTo(WellTaggedPdfConformance.FOR_ACCESSIBILITY)) {
+            checkers.add(new WellTaggedPdfForAccessibilityChecker(this));
+        } else if (conformance.conformsTo(WellTaggedPdfConformance.FOR_REUSE)) {
+            checkers.add(new WellTaggedPdfForReuseChecker(this));
+        }
         checkers.add(new Pdf20Checker(this));
         checkers.add(contrastChecker);
         return checkers;
@@ -148,20 +154,21 @@ public class WellTaggedPdfDocument extends PdfDocument {
         info.setTitle(config.getTitle());
     }
 
-    private static PdfWriter configureWriterProperties(PdfWriter writer, WellTaggedPdfConformance wtpdfConformance) {
+    private static PdfWriter configureWriterProperties(PdfWriter writer,
+            List<WellTaggedPdfConformance> wtpdfConformance) {
         writer.getProperties().addWtpdfXmpMetadata(wtpdfConformance);
         if (writer.getPdfVersion() != null && !PdfVersion.PDF_2_0.equals(writer.getPdfVersion())) {
-            LOGGER.warn(MessageFormatUtil.format(
+            LOGGER.warn(() -> MessageFormatUtil.format(
                     PdfUALogMessageConstants.WRITER_PROPERTIES_PDF_VERSION_WAS_OVERRIDDEN, PdfVersion.PDF_2_0));
             writer.getProperties().setPdfVersion(PdfVersion.PDF_2_0);
         }
         return writer;
     }
 
-    private static WellTaggedPdfChecker getWtpdfChecker(List<IValidationChecker> checkers) {
+    private static WellTaggedPdfForAccessibilityChecker getWtpdfChecker(List<IValidationChecker> checkers) {
         for (IValidationChecker checker : checkers) {
-            if (checker instanceof WellTaggedPdfChecker) {
-                return (WellTaggedPdfChecker) checker;
+            if (checker instanceof WellTaggedPdfForAccessibilityChecker) {
+                return (WellTaggedPdfForAccessibilityChecker) checker;
             }
         }
         return null;

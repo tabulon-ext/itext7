@@ -22,9 +22,7 @@
  */
 package com.itextpdf.layout;
 
-import com.itextpdf.commons.utils.FileUtil;
 import com.itextpdf.kernel.pdf.PdfDocument;
-import com.itextpdf.kernel.pdf.PdfWriter;
 import com.itextpdf.kernel.pdf.WriterProperties;
 import com.itextpdf.kernel.utils.CompareTool;
 import com.itextpdf.layout.element.Paragraph;
@@ -32,6 +30,7 @@ import com.itextpdf.test.ExtendedITextTest;
 import com.itextpdf.test.TestUtil;
 
 import java.io.IOException;
+import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Tag;
@@ -46,6 +45,11 @@ public class NewLineTest extends ExtendedITextTest {
     @BeforeAll
     public static void beforeClass() {
         createOrClearDestinationFolder(destinationFolder);
+    }
+
+    @AfterAll
+    public static void afterClass() {
+        CompareTool.cleanup(destinationFolder);
     }
 
     @Test
@@ -83,18 +87,40 @@ public class NewLineTest extends ExtendedITextTest {
         test("\r\n\r\n", "rnrn.pdf");
     }
 
+    @Test
+    public void dotAfterNTest() throws IOException, InterruptedException {
+        test("\n", "0123", ".com", "ndot.pdf");
+    }
+
+    @Test
+    public void dotAfterRNTest() throws IOException, InterruptedException {
+        test("\r\n", "0123", ".com", "rndot.pdf");
+    }
+
+    @Test
+    public void dotAfterNRTest() throws IOException, InterruptedException {
+        test("\n\r", "0123", ".com", "nrdot.pdf");
+    }
+
+    @Test
+    public void dotAfterRTest() throws IOException, InterruptedException {
+        test("\r", "0123", ".com", "rdot.pdf");
+    }
+
     private void test(String newlineCharacters, String fileName) throws IOException, InterruptedException {
+        test(newlineCharacters, "This line is before.", "This line is after.", fileName);
+    }
+
+    private void test(String newlineCharacters, String pre, String post, String fileName) throws IOException, InterruptedException {
         String outFileName = destinationFolder + fileName;
         String cmpFileName = sourceFolder + "cmp_" + fileName;
         String diffPrefix = "diff_" + fileName + "_";
 
-        PdfDocument pdf = new PdfDocument(new PdfWriter(FileUtil.getFileOutputStream(outFileName),
-                new WriterProperties().setCompressionLevel(0)));
+        PdfDocument pdf = new PdfDocument(CompareTool.createTestPdfWriter(outFileName, new WriterProperties().setCompressionLevel(0)));
         Document document = new Document(pdf);
 
-        Paragraph paragraph = new Paragraph().add(
-                "This line is before." + newlineCharacters + "This line is after.");
-                
+        Paragraph paragraph = new Paragraph().add(new StringBuilder(pre).append(newlineCharacters).append(post).toString());
+
         document.add(paragraph);
         document.close();
 

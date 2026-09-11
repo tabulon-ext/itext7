@@ -24,13 +24,14 @@ package com.itextpdf.signatures;
 
 import com.itextpdf.bouncycastleconnector.BouncyCastleFactoryCreator;
 import com.itextpdf.commons.bouncycastle.IBouncyCastleFactory;
+import com.itextpdf.commons.logs.LazyLogger;
 import com.itextpdf.kernel.crypto.OID;
 import com.itextpdf.kernel.logs.KernelLogMessageConstant;
 
 import java.util.HashMap;
 import java.util.Map;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+
+import com.itextpdf.signatures.exceptions.SignExceptionMessageConstant;
 
 /**
  * Class that contains OID mappings to extract a signature algorithm name
@@ -39,7 +40,7 @@ import org.slf4j.LoggerFactory;
  */
 public class SignatureMechanisms {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger(SignatureMechanisms.class);
+    private static final LazyLogger LOGGER = new LazyLogger(SignatureMechanisms.class);
     
     private static final IBouncyCastleFactory BOUNCY_CASTLE_FACTORY = BouncyCastleFactoryCreator.getFactory();
 
@@ -180,7 +181,7 @@ public class SignatureMechanisms {
         if (resultingOId != null) {
             return resultingOId;
         }
-        LOGGER.warn(KernelLogMessageConstant.ALGORITHM_NOT_FROM_SPEC);
+        LOGGER.warn(() -> KernelLogMessageConstant.ALGORITHM_NOT_FROM_SPEC);
         resultingOId = BOUNCY_CASTLE_FACTORY.getAlgorithmOid(digestAlgorithmName + "with" + signatureAlgorithmName);
         if (resultingOId == null) {
             return BOUNCY_CASTLE_FACTORY.getAlgorithmOid(signatureAlgorithmName);
@@ -195,6 +196,9 @@ public class SignatureMechanisms {
      * @return	an algorithm name (for instance "RSA")
      */
     public static String getAlgorithm(String oid) {
+        if(oid == null){
+            throw  new IllegalArgumentException(SignExceptionMessageConstant.OID_SHALL_NOT_BE_NULL);
+        }
         String ret = algorithmNames.get(oid);
         if (ret == null) {
             return oid;
@@ -216,7 +220,7 @@ public class SignatureMechanisms {
         if (!algorithm.equals(oid)) {
             return digest + "with" + algorithm;
         }
-        LOGGER.warn(KernelLogMessageConstant.ALGORITHM_NOT_FROM_SPEC);
+        LOGGER.warn(() -> KernelLogMessageConstant.ALGORITHM_NOT_FROM_SPEC);
         return BOUNCY_CASTLE_FACTORY.getAlgorithmName(oid);
     }
 }

@@ -24,6 +24,8 @@ package com.itextpdf.commons.bouncycastle.asn1.x500;
 
 import com.itextpdf.commons.bouncycastle.asn1.IASN1Encodable;
 
+import java.io.IOException;
+
 /**
  * This interface represents the wrapper for X500Name that provides the ability
  * to switch between bouncy-castle and bouncy-castle FIPS implementations.
@@ -35,4 +37,12 @@ public interface IX500Name extends IASN1Encodable {
      * @return the RFC2253 name
      */
     String getName();
+
+    /**
+     * Gets byte array representation of a wrapped X500Name.
+     *
+     * @return byte array representation of a wrapped X500Name
+     * @throws IOException in case of I/O Exceptions
+     */
+    byte[] getEncoded() throws IOException;
 }

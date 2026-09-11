@@ -104,7 +104,10 @@ public final class StyledXmlParserLogMessageConstant {
 
     /** The Constant UNABLE_TO_RETRIEVE_IMAGE_WITH_GIVEN_BASE_URI. */
     public static final String UNABLE_TO_RETRIEVE_IMAGE_WITH_GIVEN_BASE_URI =
-            "Unable to retrieve image with given base URI ({0}) and image source path ({1})";
+            "Unable to load image with given base URI ({0}) and image source path ({1})";
+
+    public static final String UNABLE_TO_PROCESS_IMAGE_WITH_GIVEN_BASE_URI =
+            "Unable to process image with given base URI ({0}) and image source path ({1})";
 
     public static final String UNABLE_TO_RESOLVE_IMAGE_URL =
             "Unable to resolve image path with given base URI ({0}) and image source path ({1})";
@@ -134,6 +137,12 @@ public final class StyledXmlParserLogMessageConstant {
                     + "Rule will be ignored. ";
 
     public static final String IMPORT_RULE_URL_CAN_NOT_BE_RESOLVED = "Import rule URL can't be resolved because of base URI absence.";
+
+    public static final String RELATIVE_VALUE_NOT_PARSED = "Relative value \"{0}\" was not parsed. It has invalid "
+            + "value. Defaulting to 0";
+
+    public static final String RESOLUTION_NOT_PARSED = "Resolution \"{0}\" was not parsed. It has invalid "
+            + "value. Defaulting to 0";
 
     /**
      * Instantiates a new log message constant.

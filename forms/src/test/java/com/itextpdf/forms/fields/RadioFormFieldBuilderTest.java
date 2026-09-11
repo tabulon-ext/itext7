@@ -37,7 +37,6 @@ import com.itextpdf.kernel.pdf.PdfWriter;
 import com.itextpdf.kernel.pdf.annot.PdfAnnotation;
 import com.itextpdf.kernel.pdf.annot.PdfWidgetAnnotation;
 import com.itextpdf.kernel.utils.CompareTool;
-import com.itextpdf.test.AssertUtil;
 import com.itextpdf.test.ExtendedITextTest;
 
 import java.io.ByteArrayOutputStream;
@@ -85,7 +84,7 @@ public class RadioFormFieldBuilderTest extends ExtendedITextTest {
     @Test
     public void createRadioButtonWithIncorrectNameTest() {
         PdfDocument pdfDoc = new PdfDocument(new PdfWriter(new ByteArrayOutputStream()));
-        AssertUtil.doesNotThrow(() -> new RadioFormFieldBuilder(pdfDoc, "incorrect.name")
+        Assertions.assertDoesNotThrow(() -> new RadioFormFieldBuilder(pdfDoc, "incorrect.name")
                 .setWidgetRectangle(DUMMY_RECTANGLE).createRadioGroup());
     }
 
@@ -292,7 +291,7 @@ public class RadioFormFieldBuilderTest extends ExtendedITextTest {
             }
         }
 
-        if (radioButtonFormField.pdfConformance != null && radioButtonFormField.pdfConformance.isPdfAOrUa()) {
+        if (!radioButtonFormField.pdfConformance.equals(PdfConformance.PDF_NONE_CONFORMANCE)) {
             putIfAbsent(expectedDictionary, PdfName.F, new PdfNumber(PdfAnnotation.PRINT));
         }
         // for the AS key if it's added to the group we expect it to be off or the value if the radiogroup was selected

@@ -59,6 +59,7 @@ public class CssSelector extends AbstractCssSelector {
     /* (non-Javadoc)
      * @see com.itextpdf.styledxmlparser.css.selector.ICssSelector#matches(com.itextpdf.styledxmlparser.html.node.INode)
      */
+    @Override
     public boolean matches(INode element) {
         return matches(element, selectorItems.size() - 1, null);
     }
@@ -83,8 +84,12 @@ public class CssSelector extends AbstractCssSelector {
      * Checks if the node not matches all the selectors.
      *
      * @param element the node
+     *
      * @return true, if node doesn't match all the selectors
+     *
+     * @deprecated can be replaced with proper {@link CssSelector#matches(INode)} use.
      */
+    @Deprecated
     public boolean notMatches(INode element) {
         int counter = 0;
         while (counter != selectorItems.size()) {

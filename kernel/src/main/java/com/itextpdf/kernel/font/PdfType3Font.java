@@ -22,6 +22,7 @@
  */
 package com.itextpdf.kernel.font;
 
+import com.itextpdf.commons.logs.LazyLogger;
 import com.itextpdf.io.logs.IoLogMessageConstant;
 import com.itextpdf.io.font.AdobeGlyphList;
 import com.itextpdf.io.font.FontEncoding;
@@ -43,8 +44,6 @@ import com.itextpdf.kernel.pdf.PdfObject;
 import com.itextpdf.kernel.pdf.PdfObjectWrapper;
 import com.itextpdf.kernel.pdf.PdfString;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import java.util.Map;
 
 /**
@@ -81,6 +80,7 @@ import java.util.Map;
  */
 public class PdfType3Font extends PdfSimpleFont<Type3Font> {
 
+    private static final LazyLogger LOGGER = new LazyLogger(PdfType3Font.class);
 
     private static final int FONT_BBOX_LLX = 0;
     private static final int FONT_BBOX_LLY = 1;
@@ -156,7 +156,7 @@ public class PdfType3Font extends PdfSimpleFont<Type3Font> {
         PdfDictionary encoding = fontDictionary.getAsDictionary(PdfName.Encoding);
         PdfArray differences = encoding != null ? encoding.getAsArray(PdfName.Differences) : null;
         if (charProcsDic == null || differences == null) {
-            LoggerFactory.getLogger(getClass()).warn(IoLogMessageConstant.TYPE3_FONT_INITIALIZATION_ISSUE);
+            LOGGER.warn(() -> IoLogMessageConstant.TYPE3_FONT_INITIALIZATION_ISSUE);
         }
         fillFontDescriptor(fontDictionary.getAsDictionary(PdfName.FontDescriptor));
 
@@ -374,8 +374,7 @@ public class PdfType3Font extends PdfSimpleFont<Type3Font> {
             return fontDescriptor;
         } else if (getPdfObject().getIndirectReference() != null
                 && getPdfObject().getIndirectReference().getDocument().isTagged()) {
-            Logger logger = LoggerFactory.getLogger(PdfType3Font.class);
-            logger.warn(IoLogMessageConstant.TYPE3_FONT_ISSUE_TAGGED_PDF);
+            LOGGER.warn(() -> IoLogMessageConstant.TYPE3_FONT_ISSUE_TAGGED_PDF);
         }
         return null;
     }
@@ -388,8 +387,7 @@ public class PdfType3Font extends PdfSimpleFont<Type3Font> {
             if (usedGlyphs[k] == 0) {
                 widths[i] = 0;
             } else {
-                int uni = getFontEncoding().getUnicode(k);
-                Glyph glyph = uni > -1 ? getGlyph(uni) : getFontProgram().getGlyphByCode(k);
+                Glyph glyph = getFontProgram().getGlyphByCode(k);
                 widths[i] = glyph != null ? glyph.getWidth() : 0;
             }
         }
@@ -484,13 +482,7 @@ public class PdfType3Font extends PdfSimpleFont<Type3Font> {
         }
         PdfDictionary charProcs = new PdfDictionary();
         for (int i = 0; i <= PdfFont.SIMPLE_FONT_MAX_CHAR_CODE_VALUE; i++) {
-            Type3Glyph glyph = null;
-            if (getFontEncoding().canDecode(i)) {
-                glyph = getType3Glyph(getFontEncoding().getUnicode(i));
-            }
-            if (glyph == null) {
-                glyph = ((Type3Font) getFontProgram()).getType3GlyphByCode(i);
-            }
+            Type3Glyph glyph = ((Type3Font) getFontProgram()).getType3GlyphByCode(i);
             if (glyph != null) {
                 charProcs.put(new PdfName(getFontEncoding().getDifference(i)), glyph.getContentStream());
                 glyph.getContentStream().flush();
@@ -587,7 +579,7 @@ public class PdfType3Font extends PdfSimpleFont<Type3Font> {
 
     private void normalizeGlyphSpaceUnitsTo1000Units(double[] array) {
         for (int i = 0; i < array.length; i++) {
-            array[i] = normalizeGlyphSpaceUnitsTo1000Units(array[i]);;
+            array[i] = normalizeGlyphSpaceUnitsTo1000Units(array[i]);
         }
     }
 

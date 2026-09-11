@@ -22,7 +22,9 @@
  */
 package com.itextpdf.kernel.pdf.canvas.parser;
 
+import com.itextpdf.commons.utils.MessageFormatUtil;
 import com.itextpdf.io.source.ByteArrayOutputStream;
+import com.itextpdf.kernel.exceptions.KernelExceptionMessageConstant;
 import com.itextpdf.kernel.exceptions.PdfException;
 import com.itextpdf.kernel.geom.Matrix;
 import com.itextpdf.kernel.logs.KernelLogMessageConstant;
@@ -42,7 +44,6 @@ import com.itextpdf.kernel.pdf.canvas.parser.listener.LocationTextExtractionStra
 import com.itextpdf.kernel.pdf.canvas.parser.listener.SimpleTextExtractionStrategy;
 import com.itextpdf.kernel.pdf.colorspace.PdfColorSpace;
 import com.itextpdf.kernel.pdf.colorspace.PdfSpecialCs;
-import com.itextpdf.test.AssertUtil;
 import com.itextpdf.test.ExtendedITextTest;
 import com.itextpdf.test.TestUtil;
 import com.itextpdf.test.annotations.LogMessage;
@@ -60,7 +61,6 @@ import java.util.Map;
 import java.util.Set;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
@@ -131,7 +131,7 @@ public class PdfCanvasProcessorIntegrationTest extends ExtendedITextTest {
         PdfDocument document = new PdfDocument(new PdfReader(SOURCE_FOLDER + fileName));
         PdfCanvasProcessor processor = new PdfCanvasProcessor(new NoOpEventListener());
         // Assert than no exception is thrown when an empty path is handled
-        AssertUtil.doesNotThrow(() -> processor.processPageContent(document.getPage(1)));
+        Assertions.assertDoesNotThrow(() -> processor.processPageContent(document.getPage(1)));
     }
 
     @Test
@@ -152,15 +152,25 @@ public class PdfCanvasProcessorIntegrationTest extends ExtendedITextTest {
     }
 
     @Test
-    @Disabled("DEVSIX-3608: this test currently throws StackOverflowError, which cannot be caught in .NET")
     public void parseCircularReferencesInResourcesTest() throws IOException {
         String fileName = "circularReferencesInResources.pdf";
         try (PdfDocument pdfDocument = new PdfDocument(new PdfReader(SOURCE_FOLDER + fileName))) {
 
             PdfCanvasProcessor processor = new PdfCanvasProcessor(new NoOpEventListener());
-            PdfPage page = pdfDocument.getFirstPage();
+            for (int i = 1; i <= pdfDocument.getNumberOfPages(); ++i) {
+                processor.reset();
 
-            Assertions.assertThrows(StackOverflowError.class, () -> processor.processPageContent(page));
+                PdfPage page = pdfDocument.getPage(i);
+
+                Exception exception = Assertions.assertThrows(PdfException.class,
+                        () -> processor.processPageContent(page));
+                Assertions.assertEquals(MessageFormatUtil.format(
+                        KernelExceptionMessageConstant.FORM_XOBJECT_HAS_CIRCULAR_REFERENCES, i == 1 ? 12 : 14, 0),
+                        exception.getMessage());
+
+                Assertions.assertTrue(processor.processingXObjectReferences.isEmpty(),
+                        "The processingXObjectReferences set should be empty after processing a page.");
+            }
         }
     }
 
@@ -291,13 +301,13 @@ public class PdfCanvasProcessorIntegrationTest extends ExtendedITextTest {
         PdfDocument pdfDoc = new PdfDocument(new PdfReader(SOURCE_FOLDER + "coloredPatternParsingTest.pdf"));
         ColorParsingEventListener listener = new ColorParsingEventListener();
         PdfCanvasProcessor parser = new PdfCanvasProcessor(listener);
-        AssertUtil.doesNotThrow(()->
+        Assertions.assertDoesNotThrow(()->
             parser.processPageContent(pdfDoc.getFirstPage()));
         pdfDoc.close();
         PathRenderInfo renderInfo = listener.getEncounteredPath();
         PdfColorSpace colorSpace = renderInfo.getGraphicsState().getFillColor().getColorSpace();
 
-        Assertions.assertEquals("Pattern", colorSpace.getName().getValue());
+        Assertions.assertEquals("Pattern", colorSpace.getColorspaceName().getValue());
     }
 
     @Test
@@ -305,18 +315,19 @@ public class PdfCanvasProcessorIntegrationTest extends ExtendedITextTest {
         PdfDocument pdfDoc = new PdfDocument(new PdfReader(SOURCE_FOLDER + "unColoredPatternParsingTest.pdf"));
         ColorParsingEventListener listener = new ColorParsingEventListener();
         PdfCanvasProcessor parser = new PdfCanvasProcessor(listener);
-        AssertUtil.doesNotThrow(()->
+        Assertions.assertDoesNotThrow(()->
                 parser.processPageContent(pdfDoc.getFirstPage()));
         pdfDoc.close();
         PathRenderInfo renderInfo = listener.getEncounteredPath();
         PdfColorSpace colorSpace = renderInfo.getGraphicsState().getFillColor().getColorSpace();
-        Assertions.assertEquals("UncoloredTilingPattern",colorSpace.getName().getValue() );
+        Assertions.assertEquals("UncoloredTilingPattern", colorSpace.getColorspaceName().getValue() );
     }
 
     private static class ColorParsingEventListener implements IEventListener {
         private List<IEventData> content = new ArrayList<>();
         private static final String pathDataExpected = "Path data expected.";
 
+        @Override
         public void eventOccurred(IEventData data, EventType type) {
             if (type.equals(EventType.RENDER_PATH)) {
                 PathRenderInfo pathRenderInfo = (PathRenderInfo) data;
@@ -344,6 +355,7 @@ public class PdfCanvasProcessorIntegrationTest extends ExtendedITextTest {
             return (PathRenderInfo) eventData;
         }
 
+        @Override
         public Set<EventType> getSupportedEvents() {
             return null;
         }
@@ -367,6 +379,7 @@ public class PdfCanvasProcessorIntegrationTest extends ExtendedITextTest {
         RecordFirstImageEventListener() {
         }
 
+        @Override
         public void eventOccurred(IEventData data, EventType type) {
             switch (type) {
                 case RENDER_IMAGE:
@@ -377,6 +390,7 @@ public class PdfCanvasProcessorIntegrationTest extends ExtendedITextTest {
             }
         }
 
+        @Override
         public Set<EventType> getSupportedEvents() {
             return null;
         }
@@ -394,6 +408,7 @@ public class PdfCanvasProcessorIntegrationTest extends ExtendedITextTest {
             this.sb = outStream;
         }
 
+        @Override
         public void eventOccurred(IEventData data, EventType type) {
             switch (type) {
                 case BEGIN_TEXT:
@@ -446,6 +461,7 @@ public class PdfCanvasProcessorIntegrationTest extends ExtendedITextTest {
             }
         }
 
+        @Override
         public Set<EventType> getSupportedEvents() {
             return null;
         }
@@ -458,6 +474,7 @@ public class PdfCanvasProcessorIntegrationTest extends ExtendedITextTest {
             this.map = map;
         }
 
+        @Override
         public void eventOccurred(IEventData data, EventType type) {
             if (data instanceof TextRenderInfo) {
                 TextRenderInfo renderInfo = (TextRenderInfo) data;
@@ -467,6 +484,7 @@ public class PdfCanvasProcessorIntegrationTest extends ExtendedITextTest {
             }
         }
 
+        @Override
         public Set<EventType> getSupportedEvents() {
             return null;
         }

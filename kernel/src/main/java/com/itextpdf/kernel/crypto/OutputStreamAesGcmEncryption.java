@@ -86,9 +86,10 @@ public class OutputStreamAesGcmEncryption extends OutputStreamEncryption {
      *                     an {@code IOException} is thrown if the output
      *                     stream is closed
      */
+    @Override
     public void write(byte[] b, int off, int len) throws IOException {
         byte[] cipherBuffer = cipher.update(b, off, len);
-        if (cipherBuffer.length != 0) {
+        if (cipherBuffer != null) {
             out.write(cipherBuffer, 0, cipherBuffer.length);
         }
     }
@@ -98,12 +99,15 @@ public class OutputStreamAesGcmEncryption extends OutputStreamEncryption {
      * Input data that may have been buffered during a previous update operation is processed,
      * with padding (if requested) being applied and authentication tag is appended.
      */
+    @Override
     public void finish() {
         if (!finished) {
             finished = true;
             byte[] cipherBuffer = cipher.doFinal();
             try {
-                out.write(cipherBuffer, 0, cipherBuffer.length);
+                if (cipherBuffer != null) {
+                    out.write(cipherBuffer, 0, cipherBuffer.length);
+                }
             } catch (IOException e) {
                 throw new PdfException(KernelExceptionMessageConstant.PDF_ENCRYPTION, e);
             }

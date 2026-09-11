@@ -23,6 +23,7 @@
 package com.itextpdf.pdfua.checkers;
 
 import com.itextpdf.commons.datastructures.Tuple2;
+import com.itextpdf.commons.logs.LazyLogger;
 import com.itextpdf.commons.utils.MessageFormatUtil;
 import com.itextpdf.io.font.PdfEncodings;
 import com.itextpdf.io.font.TrueTypeFont;
@@ -46,7 +47,6 @@ import com.itextpdf.kernel.validation.IValidationChecker;
 import com.itextpdf.pdfua.exceptions.PdfUAConformanceException;
 import com.itextpdf.pdfua.exceptions.PdfUAExceptionMessageConstants;
 import com.itextpdf.pdfua.logs.PdfUALogMessageConstants;
-import org.slf4j.LoggerFactory;
 
 import java.util.Collection;
 import java.util.HashSet;
@@ -68,6 +68,8 @@ import java.util.function.Function;
  */
 public abstract class PdfUAChecker implements IValidationChecker {
 
+    private static final LazyLogger LOGGER = new LazyLogger(PdfUAChecker.class);
+
     static final Function<String, PdfException> EXCEPTION_SUPPLIER = (msg) -> new PdfUAConformanceException(msg);
 
     private boolean warnedOnPageFlush = false;
@@ -84,7 +86,7 @@ public abstract class PdfUAChecker implements IValidationChecker {
      */
     public void warnOnPageFlush() {
         if (!warnedOnPageFlush) {
-            LoggerFactory.getLogger(PdfUAChecker.class).warn(PdfUALogMessageConstants.PAGE_FLUSHING_DISABLED);
+            LOGGER.warn(() -> PdfUALogMessageConstants.PAGE_FLUSHING_DISABLED);
             warnedOnPageFlush = true;
         }
     }
@@ -95,7 +97,7 @@ public abstract class PdfUAChecker implements IValidationChecker {
      *
      * @param catalog {@link PdfCatalog} document catalog dictionary
      */
-    void checkLang(PdfCatalog catalog) {
+    protected void checkLang(PdfCatalog catalog) {
         PdfDictionary catalogDict = catalog.getPdfObject();
         PdfObject lang = catalogDict.get(PdfName.Lang);
         if (!(lang instanceof PdfString)) {
@@ -114,7 +116,7 @@ public abstract class PdfUAChecker implements IValidationChecker {
      *
      * @param catalog {@link PdfCatalog} document catalog dictionary
      */
-    void checkViewerPreferences(PdfCatalog catalog) {
+    protected void checkViewerPreferences(PdfCatalog catalog) {
         PdfDictionary viewerPreferences = catalog.getPdfObject().getAsDictionary(PdfName.ViewerPreferences);
         if (viewerPreferences == null) {
             throw new PdfUAConformanceException(PdfUAExceptionMessageConstants.MISSING_VIEWER_PREFERENCES);
@@ -167,7 +169,7 @@ public abstract class PdfUAChecker implements IValidationChecker {
      * @param currentBmc the current BMC
      * @param document   {@link PdfDocument} to check
      */
-    void checkLogicalStructureInBMC(Stack<Tuple2<PdfName, PdfDictionary>> stack,
+    protected void checkLogicalStructureInBMC(Stack<Tuple2<PdfName, PdfDictionary>> stack,
                                     Tuple2<PdfName, PdfDictionary> currentBmc, PdfDocument document) {
         if (stack.isEmpty()) {
             return;
@@ -190,7 +192,7 @@ public abstract class PdfUAChecker implements IValidationChecker {
      * @param tagStack tag structure stack
      * @param document {@link PdfDocument} to check
      */
-    void checkContentInCanvas(Stack<Tuple2<PdfName, PdfDictionary>> tagStack, PdfDocument document) {
+    protected void checkContentInCanvas(Stack<Tuple2<PdfName, PdfDictionary>> tagStack, PdfDocument document) {
         if (tagStack.isEmpty()) {
             throw new PdfUAConformanceException(
                     PdfUAExceptionMessageConstants.TAG_HASNT_BEEN_ADDED_BEFORE_CONTENT_ADDING);
@@ -217,7 +219,7 @@ public abstract class PdfUAChecker implements IValidationChecker {
      *
      * @param fontsInDocument collection of fonts used in the document
      */
-    void checkFonts(Collection<PdfFont> fontsInDocument) {
+    protected void checkFonts(Collection<PdfFont> fontsInDocument) {
         Set<String> fontNamesThatAreNotEmbedded = new HashSet<>();
         for (PdfFont font : fontsInDocument) {
             if (!font.isEmbedded()) {
@@ -265,7 +267,7 @@ public abstract class PdfUAChecker implements IValidationChecker {
      * @param str  the text to check
      * @param font the font to check
      */
-    void checkText(String str, PdfFont font) {
+    protected void checkText(String str, PdfFont font) {
         int index = FontCheckUtil.checkGlyphsOfText(str, font, new PdfUAChecker.UaCharacterChecker());
 
         if (index != -1) {

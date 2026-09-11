@@ -22,6 +22,7 @@
  */
 package com.itextpdf.kernel.contrast;
 
+import com.itextpdf.commons.logs.LazyLogger;
 import com.itextpdf.kernel.contrast.ContrastResult.OverlappingArea;
 import com.itextpdf.kernel.exceptions.PdfException;
 import com.itextpdf.kernel.logs.KernelLogMessageConstant;
@@ -48,7 +49,7 @@ import java.util.List;
  */
 public class ColorContrastChecker implements IValidationChecker {
 
-    private static final org.slf4j.Logger LOGGER = org.slf4j.LoggerFactory.getLogger(ColorContrastChecker.class);
+    private static final LazyLogger LOGGER = new LazyLogger(ColorContrastChecker.class);
 
     /**
      * Flag indicating whether to analyze contrast at the individual glyph level.
@@ -175,7 +176,7 @@ public class ColorContrastChecker implements IValidationChecker {
      */
     private void logWarningIfBothChecksDisabled() {
         if (!checkWcagAA && !checkWcagAAA) {
-            LOGGER.warn(KernelLogMessageConstant.BOTH_WCAG_AA_AND_AAA_COMPLIANCE_CHECKS_DISABLED);
+            LOGGER.warn(() -> KernelLogMessageConstant.BOTH_WCAG_AA_AND_AAA_COMPLIANCE_CHECKS_DISABLED);
         }
     }
 
@@ -207,20 +208,19 @@ public class ColorContrastChecker implements IValidationChecker {
                 }
 
                 // Only check compliance levels that are enabled
-                boolean isCompliantAAA = !checkWcagAAA || WCagChecker.isTextWcagAAACompliant(
+                boolean isCompliantAAA = WCagChecker.isTextWcagAAACompliant(
                         textContrastInformation.getFontSize(), overlappingArea.getContrastRatio());
-                boolean isCompliantAA = isCompliantAAA && (!checkWcagAA || WCagChecker.isTextWcagAACompliant(
-                        textContrastInformation.getFontSize(), overlappingArea.getContrastRatio()));
+                boolean isCompliantAA = WCagChecker.isTextWcagAACompliant(
+                        textContrastInformation.getFontSize(), overlappingArea.getContrastRatio());
 
                 // Report only if at least one enabled check fails
                 if (!isCompliantAA || !isCompliantAAA) {
                     String message = generateMessage(isCompliantAAA, isCompliantAA, contrastResult,
                             overlappingArea.getContrastRatio());
                     if (this.throwExceptionOnFailure) {
-                        message = "Color contrast check failed: " + message;
-                        throw new PdfException(message);
+                        throw new PdfException("Color contrast check failed: " + message);
                     } else {
-                        LOGGER.warn(message);
+                        LOGGER.warn(() -> message);
                     }
                 }
             }

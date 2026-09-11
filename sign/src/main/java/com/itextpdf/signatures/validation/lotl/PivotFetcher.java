@@ -27,6 +27,7 @@ import com.itextpdf.commons.json.JsonArray;
 import com.itextpdf.commons.json.JsonObject;
 import com.itextpdf.commons.json.JsonString;
 import com.itextpdf.commons.json.JsonValue;
+import com.itextpdf.commons.logs.LazyLogger;
 import com.itextpdf.commons.utils.MessageFormatUtil;
 import com.itextpdf.kernel.exceptions.PdfException;
 import com.itextpdf.signatures.exceptions.SignExceptionMessageConstant;
@@ -37,8 +38,6 @@ import com.itextpdf.signatures.validation.lotl.xml.XmlSaxProcessor;
 import com.itextpdf.signatures.validation.report.ReportItem;
 import com.itextpdf.signatures.validation.report.ValidationReport;
 import com.itextpdf.signatures.validation.report.ValidationReport.ValidationResult;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.io.ByteArrayInputStream;
 import java.net.URL;
@@ -56,7 +55,7 @@ import static com.itextpdf.signatures.validation.lotl.LotlValidator.UNABLE_TO_RE
  * This class fetches and validates pivot files from a List of Trusted Lists (Lotl) XML.
  */
 public class PivotFetcher {
-    private static final Logger LOGGER = LoggerFactory.getLogger(PivotFetcher.class);
+    private static final LazyLogger LOGGER = new LazyLogger(PivotFetcher.class);
 
     private final LotlService service;
     private String currentJournalUri;
@@ -94,10 +93,15 @@ public class PivotFetcher {
         Result result = new Result();
 
         List<String> pivotsUrlList = getPivotsUrlList(lotlXml);
+        //Stream is guaranteed to retain order so we should be a ok.
         List<String> ojUris = pivotsUrlList.stream()
-                .filter(url -> XmlPivotsHandler.isOfficialJournal(url)).collect(Collectors.toList());
+                .filter(url -> XmlPivotsHandler.isOfficialJournal(url))
+                .collect(Collectors.toList());
         if (ojUris.size() > 1) {
-            LOGGER.warn(SignLogMessageConstant.OJ_TRANSITION_PERIOD);
+            //This means we are in a transition period but the user has already updated, so no need to log.
+            if (ojUris.indexOf(currentJournalUri) != 0){
+                LOGGER.warn(() -> SignLogMessageConstant.OJ_TRANSITION_PERIOD);
+            }
         }
         result.setPivotUrls(pivotsUrlList);
         List<byte[]> pivotFiles = new ArrayList<>();

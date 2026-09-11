@@ -24,7 +24,6 @@ package com.itextpdf.kernel.pdf.canvas;
 
 import com.itextpdf.commons.utils.FileUtil;
 import com.itextpdf.commons.utils.MessageFormatUtil;
-import com.itextpdf.io.exceptions.IoExceptionMessageConstant;
 import com.itextpdf.io.font.PdfEncodings;
 import com.itextpdf.io.font.constants.StandardFonts;
 import com.itextpdf.io.font.otf.ActualTextIterator;
@@ -41,6 +40,7 @@ import com.itextpdf.kernel.exceptions.MemoryLimitsAwareException;
 import com.itextpdf.kernel.exceptions.PdfException;
 import com.itextpdf.kernel.font.PdfFont;
 import com.itextpdf.kernel.font.PdfFontFactory;
+import com.itextpdf.kernel.geom.PageSize;
 import com.itextpdf.kernel.geom.Rectangle;
 import com.itextpdf.kernel.pdf.MemoryLimitsAwareHandler;
 import com.itextpdf.kernel.pdf.PdfArray;
@@ -60,7 +60,6 @@ import com.itextpdf.kernel.pdf.WriterProperties;
 import com.itextpdf.kernel.pdf.canvas.wmf.WmfImageData;
 import com.itextpdf.kernel.pdf.extgstate.PdfExtGState;
 import com.itextpdf.kernel.utils.CompareTool;
-import com.itextpdf.test.AssertUtil;
 import com.itextpdf.test.ExtendedITextTest;
 import com.itextpdf.test.TestUtil;
 
@@ -68,6 +67,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -77,6 +77,8 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.DisabledInNativeImage;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
 
 @Tag("IntegrationTest")
 public class PdfCanvasTest extends ExtendedITextTest {
@@ -99,6 +101,12 @@ public class PdfCanvasTest extends ExtendedITextTest {
     private static final String AUTHOR = "iText Software";
     private static final String CREATOR = "iText";
     private static final String TITLE = "Empty iText Document";
+
+    private static Iterable<Object[]> rotations() {
+        return Arrays.asList(new Object[][]{
+                {0}, {90}, {180}, {270}, {360}
+        });
+    }
 
     private static final ContentProvider DEFAULT_CONTENT_PROVIDER = new ContentProvider() {
         @Override
@@ -1149,7 +1157,7 @@ public class PdfCanvasTest extends ExtendedITextTest {
             }
         };
         stream.put(PdfName.Filter, new PdfName("FlateDecode"));
-        AssertUtil.doesNotThrow(()->{
+        Assertions.assertDoesNotThrow(()->{
             new PdfCanvas(stream, new PdfResources(),doc );
         });
     }
@@ -1781,6 +1789,56 @@ public class PdfCanvasTest extends ExtendedITextTest {
                     .endText()
                     .restoreState();
             page.flush();
+        }
+
+        Assertions.assertNull(new CompareTool().compareByContent(outPdf, cmpPdf, DESTINATION_FOLDER, "diff_"));
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("rotations")
+    public void ignorePageRotationCoordsTest(int rotation) throws IOException, InterruptedException {
+        final String intermPdf = DESTINATION_FOLDER + "ignorePageRotationCoordsInterm_"
+                + Integer.toString(rotation) + ".pdf";
+        final String outPdf = DESTINATION_FOLDER + "ignorePageRotationCoords_" + Integer.toString(rotation) + ".pdf";
+        final String cmpPdf = SOURCE_FOLDER + "cmp_ignorePageRotationCoords_" + Integer.toString(rotation) + ".pdf";
+
+        try (PdfDocument pdfDoc = new PdfDocument(new PdfWriter(CompareTool.createTestPdfWriter(intermPdf)))) {
+            float x = 100;
+            float y = 50;
+            float width = 300;
+            float height = 350;
+            pdfDoc.setDefaultPageSize(new PageSize(new Rectangle(x, y, width, height)));
+            PdfPage newPage = pdfDoc.addNewPage();
+            newPage.setRotation(rotation);
+            PdfCanvas canvas = new PdfCanvas(newPage);
+            canvas.beginText()
+                    .setFontAndSize(PdfFontFactory.createFont(StandardFonts.HELVETICA), 8)
+                    .moveText(x + 5, y + height - 15)
+                    .showText("Original upper left corner...")
+                    .endText();
+        }
+
+        try (PdfDocument pdfDoc = new PdfDocument(CompareTool.createOutputReader(intermPdf),
+                new PdfWriter(CompareTool.createTestPdfWriter(outPdf)))) {
+            PdfPage page = pdfDoc.getPage(1);
+            page.setIgnorePageRotationForContent(true);
+
+            Rectangle pageSize = page.getPageSizeWithRotation();
+            final float x = pageSize.getLeft();
+            final float y = pageSize.getBottom();
+
+            PdfCanvas canvas = new PdfCanvas(page, true);
+            canvas.beginText()
+                    .setFontAndSize(PdfFontFactory.createFont(StandardFonts.HELVETICA), 6)
+                    .moveText(x, y)
+                    .showText("STAMP lower left")
+                    .endText();
+
+            canvas.beginText()
+                    .setFontAndSize(PdfFontFactory.createFont(StandardFonts.HELVETICA), 6)
+                    .moveText(x + pageSize.getWidth() / 2, y + pageSize.getHeight() / 2)
+                    .showText("STAMP center")
+                    .endText();
         }
 
         Assertions.assertNull(new CompareTool().compareByContent(outPdf, cmpPdf, DESTINATION_FOLDER, "diff_"));

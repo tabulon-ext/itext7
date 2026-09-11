@@ -22,18 +22,21 @@
  */
 package com.itextpdf.pdfa.checker;
 
+import com.itextpdf.commons.logs.LazyLogger;
 import com.itextpdf.commons.utils.MessageFormatUtil;
 import com.itextpdf.forms.fields.PdfFormField;
 import com.itextpdf.io.colors.IccProfile;
-import com.itextpdf.io.font.FontEncoding;
+import com.itextpdf.io.font.FontProgram;
 import com.itextpdf.io.font.PdfEncodings;
 import com.itextpdf.io.image.ImageDataFactory;
 import com.itextpdf.io.image.Jpeg2000ImageData;
 import com.itextpdf.kernel.colors.Color;
 import com.itextpdf.kernel.colors.PatternColor;
+import com.itextpdf.kernel.exceptions.PdfException;
 import com.itextpdf.kernel.font.PdfFont;
 import com.itextpdf.kernel.font.PdfTrueTypeFont;
 import com.itextpdf.kernel.font.PdfType3Font;
+import com.itextpdf.kernel.font.Type3Font;
 import com.itextpdf.kernel.font.Type3Glyph;
 import com.itextpdf.kernel.geom.Rectangle;
 import com.itextpdf.kernel.pdf.PdfAConformance;
@@ -67,8 +70,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * PdfA2Checker defines the requirements of the PDF/A-2 standard and contains a
@@ -163,7 +164,7 @@ public class PdfA2Checker extends PdfA1Checker {
     static final int MIN_PAGE_SIZE = 3;
     private static final int MAX_NUMBER_OF_DEVICEN_COLOR_COMPONENTS = 32;
 
-    private static final Logger logger = LoggerFactory.getLogger(PdfAChecker.class);
+    private static final LazyLogger LOGGER = new LazyLogger(PdfAChecker.class);
 
     private static final String TRANSPARENCY_ERROR_MESSAGE =
             PdfaExceptionMessageConstant.THE_DOCUMENT_DOES_NOT_CONTAIN_A_PDFA_OUTPUTINTENT_BUT_PAGE_CONTAINS_TRANSPARENCY_AND_DOES_NOT_CONTAIN_BLENDING_COLOR_SPACE;
@@ -171,7 +172,7 @@ public class PdfA2Checker extends PdfA1Checker {
     private boolean currentFillCsIsIccBasedCMYK = false;
     private boolean currentStrokeCsIsIccBasedCMYK = false;
 
-    private final Map<PdfName, PdfArray> separationColorSpaces = new HashMap<>();
+    private final SeparationColorMap separationColorMap = new SeparationColorMap();
 
     /**
      * Creates a PdfA2Checker with the required conformance
@@ -486,7 +487,7 @@ public class PdfA2Checker extends PdfA1Checker {
 
         if (checkStructure(conformance)) {
             if (contentAnnotations.contains(subtype) && !annotDic.containsKey(PdfName.Contents)) {
-                logger.warn(MessageFormatUtil.format(
+                LOGGER.warn(() -> MessageFormatUtil.format(
                         PdfAConformanceLogMessageConstant.ANNOTATION_OF_TYPE_0_SHOULD_HAVE_CONTENTS_KEY, subtype.getValue()));
             }
         }
@@ -657,19 +658,32 @@ public class PdfA2Checker extends PdfA1Checker {
     protected void checkFileSpec(PdfDictionary fileSpec) {
         if (fileSpec.containsKey(PdfName.EF)) {
             if (!fileSpec.containsKey(PdfName.F) || !fileSpec.containsKey(PdfName.UF)) {
-                throw new PdfAConformanceException(PdfaExceptionMessageConstant.FILE_SPECIFICATION_DICTIONARY_SHALL_CONTAIN_F_KEY_AND_UF_KEY);
+                throw new PdfAConformanceException(
+                        PdfaExceptionMessageConstant.FILE_SPECIFICATION_DICTIONARY_SHALL_CONTAIN_F_KEY_AND_UF_KEY);
             }
             if (!fileSpec.containsKey(PdfName.Desc)) {
-                logger.warn(PdfAConformanceLogMessageConstant.FILE_SPECIFICATION_DICTIONARY_SHOULD_CONTAIN_DESC_KEY);
+                LOGGER.warn(() ->
+                        PdfAConformanceLogMessageConstant.FILE_SPECIFICATION_DICTIONARY_SHOULD_CONTAIN_DESC_KEY);
             }
 
             PdfDictionary ef = fileSpec.getAsDictionary(PdfName.EF);
-            PdfStream embeddedFile = ef.getAsStream(PdfName.F);
-            if (embeddedFile == null) {
-                throw new PdfAConformanceException(PdfaExceptionMessageConstant.EF_KEY_OF_FILE_SPECIFICATION_DICTIONARY_SHALL_CONTAIN_DICTIONARY_WITH_VALID_F_KEY);
-            }
+            checkFileSpecEmbeddedStream(ef.getAsStream(PdfName.F));
             // iText doesn't check whether provided file is compliant to PDF-A specs.
-            logger.warn(PdfAConformanceLogMessageConstant.EMBEDDED_FILE_SHALL_BE_COMPLIANT_WITH_SPEC);
+            LOGGER.warn(() -> PdfAConformanceLogMessageConstant.EMBEDDED_FILE_SHALL_BE_COMPLIANT_WITH_SPEC);
+        }
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    protected void checkFileSpecEmbeddedStream(PdfStream embeddedFile) {
+        if (isAlreadyChecked(embeddedFile)) {
+            return;
+        }
+
+        if (embeddedFile == null) {
+            throw new PdfAConformanceException(PdfaExceptionMessageConstant.EF_KEY_OF_FILE_SPECIFICATION_DICTIONARY_SHALL_CONTAIN_DICTIONARY_WITH_VALID_F_KEY);
         }
     }
 
@@ -1160,17 +1174,16 @@ public class PdfA2Checker extends PdfA1Checker {
     private void checkSeparationInsideDeviceN(PdfArray separation, PdfObject deviceNColorSpace, PdfObject deviceNTintTransform) {
         if (!isAltCSIsTheSame(separation.get(2), deviceNColorSpace) ||
                 !deviceNTintTransform.equals(separation.get(3))) {
-            logger.warn(PdfAConformanceLogMessageConstant.TINT_TRANSFORM_AND_ALTERNATE_SPACE_OF_SEPARATION_ARRAYS_IN_THE_COLORANTS_OF_DEVICE_N_SHOULD_BE_CONSISTENT_WITH_SAME_ATTRIBUTES_OF_DEVICE_N);
+            LOGGER.warn(() -> PdfAConformanceLogMessageConstant.TINT_TRANSFORM_AND_ALTERNATE_SPACE_OF_SEPARATION_ARRAYS_IN_THE_COLORANTS_OF_DEVICE_N_SHOULD_BE_CONSISTENT_WITH_SAME_ATTRIBUTES_OF_DEVICE_N);
         }
         checkSeparationCS(separation);
     }
 
     private void checkSeparationCS(PdfArray separation) {
-        if (separationColorSpaces.containsKey(separation.getAsName(0))) {
+        if (separationColorMap.contains(separation)) {
             boolean altCSIsTheSame;
             boolean tintTransformIsTheSame;
-
-            PdfArray sameNameSeparation = separationColorSpaces.get(separation.getAsName(0));
+            PdfArray sameNameSeparation = separationColorMap.get(separation);
             PdfObject cs1 = separation.get(2);
             PdfObject cs2 = sameNameSeparation.get(2);
             altCSIsTheSame = isAltCSIsTheSame(cs1, cs2);
@@ -1189,7 +1202,7 @@ public class PdfA2Checker extends PdfA1Checker {
                 throw new PdfAConformanceException(PdfaExceptionMessageConstant.TINT_TRANSFORM_AND_ALTERNATE_SPACE_SHALL_BE_THE_SAME_FOR_THE_ALL_SEPARATION_CS_WITH_THE_SAME_NAME);
             }
         } else {
-            separationColorSpaces.put(separation.getAsName(0), separation);
+            separationColorMap.put(separation);
         }
     }
 
@@ -1258,9 +1271,10 @@ public class PdfA2Checker extends PdfA1Checker {
 
     private void checkType3FontGlyphs(PdfType3Font font, PdfStream contentStream) {
         for (int i = 0; i <= PdfFont.SIMPLE_FONT_MAX_CHAR_CODE_VALUE; ++i) {
-            FontEncoding fontEncoding = font.getFontEncoding();
-            if (fontEncoding.canDecode(i)) {
-                Type3Glyph type3Glyph = font.getType3Glyph(fontEncoding.getUnicode(i));
+            FontProgram fontProgram = font.getFontProgram();
+            if (fontProgram instanceof Type3Font) {
+                Type3Font type3Font = (Type3Font) fontProgram;
+                Type3Glyph type3Glyph = type3Font.getType3GlyphByCode(i);
                 if (type3Glyph != null) {
                     checkFormXObject(type3Glyph.getContentStream(), contentStream);
                 }
@@ -1271,6 +1285,48 @@ public class PdfA2Checker extends PdfA1Checker {
     private static final class UpdateCanvasGraphicsState extends CanvasGraphicsState {
         public UpdateCanvasGraphicsState(PdfDictionary extGStateDict) {
             updateFromExtGState(new PdfExtGState(extGStateDict));
+        }
+    }
+
+    private static final class SeparationColorMap {
+        private final Map<PdfName, PdfArray> separationColorsMap = new HashMap<>();
+
+        public SeparationColorMap() {
+            //empty constructor
+        }
+
+        public boolean contains(PdfArray separationColor) {
+            final PdfName key = getUniqueIdentifierOfSeparation(separationColor);
+            if (key == null) {
+                return false;
+            }
+            return separationColorsMap.containsKey(key);
+        }
+
+        public void put(PdfArray separationColor) {
+            final PdfName key = getUniqueIdentifierOfSeparation(separationColor);
+            if (key == null) {
+                return;
+            }
+            separationColorsMap.put(key, separationColor);
+        }
+
+        public PdfArray get(PdfArray separationColor) {
+            final PdfName key = getUniqueIdentifierOfSeparation(separationColor);
+            if (key == null) {
+                return null;
+            }
+            return separationColorsMap.get(key);
+        }
+
+        private static PdfName getUniqueIdentifierOfSeparation(PdfArray separation) {
+            // From PDF spec
+            // A Separation colour space is defined as follows:
+            // [/Separation name alternateSpace tintTransform]
+            if (separation.size() >= 2) {
+                return separation.getAsName(1);
+            }
+            throw new PdfException(PdfaExceptionMessageConstant.SEPARATION_COLOR_ARRAY_DOES_NOT_ADHERE_TO_PDF_SPEC);
         }
     }
 }

@@ -77,7 +77,6 @@ public class SharpenConfigMapping implements MappingConfiguration {
         configurator.mapType("com.itextpdf.kernel.pdf.canvas.parser.clipper.IClipper.ClipType", "iText.Kernel.Pdf.Canvas.Parser.ClipperLib.ClipType");
         configurator.mapType("com.itextpdf.kernel.pdf.canvas.parser.clipper.DefaultClipper", "iText.Kernel.Pdf.Canvas.Parser.ClipperLib.Clipper");
         configurator.mapType("com.itextpdf.kernel.pdf.canvas.parser.clipper.Path", "System.Collections.Generic.List<IntPoint>");
-        configurator.mapType("com.itextpdf.kernel.pdf.WellTaggedPdfConformance", "iText.Kernel.Pdf.WellTaggedPdfConformance?");
         configurator.mapMethod("com.itextpdf.kernel.pdf.canvas.parser.clipper.Paths.makePolyTreeToPaths", "iText.Kernel.Pdf.Canvas.Parser.ClipperLib.Clipper.PolyTreeToPaths");
         configurator.mapProperty("com.itextpdf.kernel.pdf.canvas.parser.clipper.PolyNode.getContour", "Contour");
         configurator.mapProperty("com.itextpdf.kernel.pdf.canvas.parser.clipper.PolyNode.isOpen", "IsOpen");
@@ -160,9 +159,12 @@ public class SharpenConfigMapping implements MappingConfiguration {
 
         configurator.mapMethodParametersOrder("com.itextpdf.kernel.crypto.CryptoUtil.getMessageDigest", "1");
         configurator.mapMethodParametersOrder("com.itextpdf.kernel.crypto.CryptoUtil.getMessageDigest(java.lang.String,java.lang.String)", "1");
-        //BouncyCastleWrappersConfigUtils.applyMappingConfiguration(configurator);
 
         configurator.addCustomUsingDeclaration("com.itextpdf.kernel.contrast.ContrastAnalyzer", Arrays.asList("Paths = System.Collections.Generic.List<System.Collections.Generic.List<iText.Kernel.Pdf.Canvas.Parser.ClipperLib.IntPoint>>"));
+        configurator.addCustomUsingDeclaration("com.itextpdf.kernel.pdf.PdfDictionaryEntrySet.removeAll", Collections.singletonList("iText.Commons.Internal.Runtime"));
+        configurator.addCustomUsingDeclaration("com.itextpdf.kernel.pdf.PdfDictionaryTest", Collections.singletonList("iText.Commons.Internal.Runtime"));
+        configurator.addCustomUsingDeclaration("com.itextpdf.kernel.colors.DeviceRgb", Arrays.asList("iText.Commons.Utils"));
+        configurator.mapMethod("com.itextpdf.kernel.pdf.annot.PdfSoundAnnotation.correctWavFile", "iText.Commons.Utils.JavaUtil.CorrectWavFile", false);
     }
 
     @Override

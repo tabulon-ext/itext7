@@ -25,6 +25,8 @@ package com.itextpdf.signatures.validation.lotl;
 import com.itextpdf.commons.datastructures.ConcurrentHashSet;
 import com.itextpdf.commons.json.JsonObject;
 import com.itextpdf.commons.json.JsonValue;
+import com.itextpdf.commons.logs.LazyLogger;
+import com.itextpdf.kernel.exceptions.PdfException;
 import com.itextpdf.signatures.CertificateUtil;
 import com.itextpdf.signatures.logs.SignLogMessageConstant;
 import com.itextpdf.signatures.validation.lotl.CountrySpecificLotlFetcher.Result;
@@ -40,8 +42,6 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * This class provides services for managing the single country List of Trusted Lists (LOTL) and related resources.
@@ -56,7 +56,7 @@ import org.slf4j.LoggerFactory;
  */
 public class SingleFileLotlService extends LotlService {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger(SingleFileLotlService.class);
+    private static final LazyLogger LOGGER = new LazyLogger(SingleFileLotlService.class);
 
     private final CountrySpecificLotl countrySpecificLotl;
     private final List<Certificate> certificates;
@@ -78,7 +78,7 @@ public class SingleFileLotlService extends LotlService {
 
         // TODO DEVSIX-9710: Split LotlFetchingProperties onto classes relevant for specific services
         if (!lotlFetchingProperties.getSchemaNames().isEmpty()) {
-            LOGGER.warn(SignLogMessageConstant.SCHEMA_NAMES_CONFIGURATION_PROPERTY_IGNORED);
+            LOGGER.warn(() -> SignLogMessageConstant.SCHEMA_NAMES_CONFIGURATION_PROPERTY_IGNORED);
         }
     }
 
@@ -91,11 +91,11 @@ public class SingleFileLotlService extends LotlService {
         StringBuilder sb = new StringBuilder();
         try {
             int bytesRead;
-            while ((bytesRead = in.read(buffer)) != -1) {
+            while ((bytesRead = in.read(buffer, 0, buffer.length)) > 0) {
                 sb.append(new String(buffer, 0, bytesRead, StandardCharsets.UTF_8));
             }
         } catch (Exception e) {
-            throw new RuntimeException("Error reading from cache input stream", e);
+            throw new PdfException("Error reading from cache input stream", e);
         }
 
         String jsonString = sb.toString();

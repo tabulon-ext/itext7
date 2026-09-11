@@ -103,7 +103,13 @@ public class ImageSvgNodeRenderer extends AbstractSvgNodeRenderer {
             String meetOrSlice = alignAndMeet[1];
 
             Rectangle currentViewPort = new Rectangle(0, 0, width, height);
-            Rectangle viewBox = new Rectangle(0, 0, xObject.getWidth(), xObject.getHeight());
+            Rectangle viewBox;
+            if (xObject.getWidth() <= 0 || xObject.getHeight() <= 0) {
+                viewBox = new Rectangle(currentViewPort);
+            } else {
+                viewBox = new Rectangle(0, 0, xObject.getWidth(), xObject.getHeight());
+            }
+
             Rectangle appliedViewBox = SvgCoordinateUtils.applyViewBox(viewBox, currentViewPort, align, meetOrSlice);
 
             float scaleWidth = appliedViewBox.getWidth() / viewBox.getWidth();

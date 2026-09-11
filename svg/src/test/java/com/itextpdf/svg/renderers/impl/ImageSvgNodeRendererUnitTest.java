@@ -22,11 +22,24 @@
  */
 package com.itextpdf.svg.renderers.impl;
 
+import com.itextpdf.io.source.ByteArrayOutputStream;
+import com.itextpdf.kernel.geom.Rectangle;
+import com.itextpdf.kernel.pdf.PdfDocument;
+import com.itextpdf.kernel.pdf.PdfWriter;
+import com.itextpdf.kernel.pdf.canvas.PdfCanvas;
+import com.itextpdf.kernel.pdf.xobject.PdfFormXObject;
+import com.itextpdf.kernel.pdf.xobject.PdfXObject;
+import com.itextpdf.styledxmlparser.resolver.resource.ResourceResolver;
+import com.itextpdf.svg.SvgConstants;
+import com.itextpdf.svg.renderers.SvgDrawContext;
 import com.itextpdf.test.ExtendedITextTest;
 
+import java.nio.charset.StandardCharsets;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import org.junit.jupiter.api.Assertions;
-import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Tag;
+import org.junit.jupiter.api.Test;
 
 @Tag("UnitTest")
 public class ImageSvgNodeRendererUnitTest extends ExtendedITextTest {
@@ -35,5 +48,41 @@ public class ImageSvgNodeRendererUnitTest extends ExtendedITextTest {
     public void noObjectBoundingBoxTest() {
         ImageSvgNodeRenderer renderer = new ImageSvgNodeRenderer();
         Assertions.assertNull(renderer.getObjectBoundingBox(null));
+    }
+
+    @Test
+    public void zeroSizedViewBoxDoesNotProduceExceptionTest() {
+        PdfFormXObject zeroSizedXObject = new PdfFormXObject(new Rectangle(0, 0, 0, 0));
+
+        ResourceResolver resourceResolver = new ResourceResolver("") {
+            @Override
+            public PdfXObject retrieveImage(String src) {
+                return zeroSizedXObject;
+            }
+        };
+
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        try (PdfDocument document = new PdfDocument(new PdfWriter(baos))) {
+            PdfCanvas canvas = new PdfCanvas(document.addNewPage());
+
+            SvgDrawContext context = new SvgDrawContext(resourceResolver, null);
+            context.addViewPort(new Rectangle(0, 0, 500, 500));
+            context.pushCanvas(canvas);
+
+            Map<String, String> attributes = new ConcurrentHashMap<>();
+            attributes.put(SvgConstants.Attributes.HREF, "any.png");
+            attributes.put(SvgConstants.Attributes.WIDTH, "100");
+            attributes.put(SvgConstants.Attributes.HEIGHT, "50");
+
+            ImageSvgNodeRenderer renderer = new ImageSvgNodeRenderer();
+            renderer.setAttributesAndStyles(attributes);
+
+            //should not throw a when view box is not existing
+            renderer.doDraw(context);
+
+            String contentStream = new String(canvas.getContentStream().getBytes(), StandardCharsets.UTF_8);
+            // 100px x 50px converted to points.
+            Assertions.assertTrue(contentStream.contains("75 0 0 -37.5 0 37.5 cm"));
+        }
     }
 }

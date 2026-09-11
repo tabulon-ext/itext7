@@ -28,7 +28,6 @@ import com.itextpdf.io.logs.IoLogMessageConstant;
 import com.itextpdf.kernel.colors.ColorConstants;
 import com.itextpdf.kernel.colors.DeviceRgb;
 import com.itextpdf.kernel.pdf.PdfDocument;
-import com.itextpdf.kernel.pdf.PdfWriter;
 import com.itextpdf.kernel.pdf.xobject.PdfImageXObject;
 import com.itextpdf.kernel.utils.CompareTool;
 import com.itextpdf.layout.borders.DashedBorder;
@@ -49,12 +48,14 @@ import com.itextpdf.layout.properties.Property;
 import com.itextpdf.layout.properties.TextAlignment;
 import com.itextpdf.layout.properties.UnitValue;
 import com.itextpdf.layout.properties.VerticalAlignment;
+import com.itextpdf.layout.testutil.TestResourceUtil;
 import com.itextpdf.test.ExtendedITextTest;
 import com.itextpdf.test.TestUtil;
 import com.itextpdf.test.annotations.LogMessage;
 import com.itextpdf.test.annotations.LogMessages;
 
 import java.io.IOException;
+import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Disabled;
@@ -67,47 +68,30 @@ public class BlockTest extends ExtendedITextTest {
     public static final String sourceFolder = "./src/test/resources/com/itextpdf/layout/BlockTest/";
     public static final String destinationFolder = TestUtil.getOutputPath() + "/layout/BlockTest/";
 
-    private static final String textByronNarrow =
-            "When a man hath no freedom to fight for at home, " +
-                    "Let him combat for that of his neighbours; " +
-                    "Let him think of the glories of Greece and of Rome, " +
-                    "And get knocked on the head for his labours. " +
-                    "\n" +
-                    "To do good to Mankind is the chivalrous plan, " +
-                    "And is always as nobly requited; " +
-                    "Then battle for Freedom wherever you can, " +
-                    "And, if not shot or hanged, you'll get knighted.";
-
-    private static final String textByron =
-            "When a man hath no freedom to fight for at home,\n" +
-                    "    Let him combat for that of his neighbours;\n" +
-                    "Let him think of the glories of Greece and of Rome,\n" +
-                    "    And get knocked on the head for his labours.\n" +
-                    "\n" +
-                    "To do good to Mankind is the chivalrous plan,\n" +
-                    "    And is always as nobly requited;\n" +
-                    "Then battle for Freedom wherever you can,\n" +
-                    "    And, if not shot or hanged, you'll get knighted.";
-
     @BeforeAll
     public static void beforeClass() {
         createOrClearDestinationFolder(destinationFolder);
     }
 
+    @AfterAll
+    public static void afterClass() {
+        CompareTool.cleanup(destinationFolder);
+    }
+
+    @Test
     @LogMessages(messages = {
             @LogMessage(messageTemplate = IoLogMessageConstant.CLIP_ELEMENT, count = 2)
     })
-    @Test
     public void blockWithSetHeightProperties01() throws IOException, InterruptedException {
         String outFileName = destinationFolder + "blockWithSetHeightProperties01.pdf";
         String cmpFileName = sourceFolder + "cmp_blockWithSetHeightProperties01.pdf";
-        PdfDocument pdfDocument = new PdfDocument(new PdfWriter(outFileName));
+        PdfDocument pdfDocument = new PdfDocument(CompareTool.createTestPdfWriter(outFileName));
 
         Document doc = new Document(pdfDocument);
 
-        Paragraph p = new Paragraph(textByron);
+        Paragraph p = new Paragraph(TestResourceUtil.getByronStanza());
         for (int i = 0; i < 10; i++) {
-            p.add(textByron);
+            p.add(TestResourceUtil.getByronStanza());
         }
         p.setBorder(new SolidBorder(0.5f));
 
@@ -162,11 +146,11 @@ public class BlockTest extends ExtendedITextTest {
     public void blockWithSetHeightProperties02() throws IOException, InterruptedException {
         String outFileName = destinationFolder + "blockWithSetHeightProperties02.pdf";
         String cmpFileName = sourceFolder + "cmp_blockWithSetHeightProperties02.pdf";
-        PdfDocument pdfDocument = new PdfDocument(new PdfWriter(outFileName));
+        PdfDocument pdfDocument = new PdfDocument(CompareTool.createTestPdfWriter(outFileName));
 
         Document doc = new Document(pdfDocument);
 
-        Paragraph p = new Paragraph(textByron);
+        Paragraph p = new Paragraph(TestResourceUtil.getByronStanza());
         Div div = new Div();
         div.setBorder(new SolidBorder(ColorConstants.RED, 2));
         for (int i = 0; i < 5; i++) {
@@ -227,14 +211,14 @@ public class BlockTest extends ExtendedITextTest {
         //Relative height declaration tests
         String outFileName = destinationFolder + "blockWithSetHeightProperties03.pdf";
         String cmpFileName = sourceFolder + "cmp_blockWithSetHeightProperties03.pdf";
-        PdfDocument pdfDocument = new PdfDocument(new PdfWriter(outFileName));
+        PdfDocument pdfDocument = new PdfDocument(CompareTool.createTestPdfWriter(outFileName));
 
         Document doc = new Document(pdfDocument);
 
         float parentHeight = 650;
 
         Div d = new Div();
-        d.add(new Paragraph(textByron));
+        d.add(new Paragraph(TestResourceUtil.getByronStanza()));
         d.setBorder(new SolidBorder(0.5f));
 
 
@@ -327,14 +311,14 @@ public class BlockTest extends ExtendedITextTest {
         //Relative height declaration tests
         String outFileName = destinationFolder + "blockWithSetHeightProperties04.pdf";
         String cmpFileName = sourceFolder + "cmp_blockWithSetHeightProperties04.pdf";
-        PdfDocument pdfDocument = new PdfDocument(new PdfWriter(outFileName));
+        PdfDocument pdfDocument = new PdfDocument(CompareTool.createTestPdfWriter(outFileName));
 
         Document doc = new Document(pdfDocument);
 
         float parentHeight = 650;
 
         Paragraph p = new Paragraph();
-        p.add(new Text(textByron));
+        p.add(new Text(TestResourceUtil.getByronStanza()));
         p.setBorder(new SolidBorder(0.5f));
 
         doc.add(new Paragraph("Default layout:"));
@@ -424,14 +408,14 @@ public class BlockTest extends ExtendedITextTest {
     public void overflowTest01() throws IOException, InterruptedException {
         String outFileName = destinationFolder + "overflowTest01.pdf";
         String cmpFileName = sourceFolder + "cmp_overflowTest01.pdf";
-        PdfDocument pdfDocument = new PdfDocument(new PdfWriter(outFileName));
+        PdfDocument pdfDocument = new PdfDocument(CompareTool.createTestPdfWriter(outFileName));
 
         Document doc = new Document(pdfDocument);
 
         Paragraph explanation = new Paragraph("In this sample iText will not try to fit text in container's width, because overflow property is set. However no text is hidden.");
         doc.add(explanation);
 
-        Paragraph p = new Paragraph(textByronNarrow);
+        Paragraph p = new Paragraph(TestResourceUtil.getByronStanzaNarrow());
         p.setWidth(200);
         p.setBorder(new SolidBorder(ColorConstants.BLUE, 1));
         p.setProperty(Property.OVERFLOW_X, OverflowPropertyValue.HIDDEN);
@@ -454,7 +438,7 @@ public class BlockTest extends ExtendedITextTest {
     public void overflowTest02() throws IOException, InterruptedException {
         String outFileName = destinationFolder + "overflowTest02.pdf";
         String cmpFileName = sourceFolder + "cmp_overflowTest02.pdf";
-        PdfDocument pdfDocument = new PdfDocument(new PdfWriter(outFileName));
+        PdfDocument pdfDocument = new PdfDocument(CompareTool.createTestPdfWriter(outFileName));
 
         Document doc = new Document(pdfDocument);
 
@@ -465,7 +449,7 @@ public class BlockTest extends ExtendedITextTest {
         p.setBorder(new SolidBorder(ColorConstants.BLUE, 1));
         p.setBackgroundColor(ColorConstants.YELLOW);
         for (int i = 0; i < 10; i++) {
-            p.add(textByronNarrow);
+            p.add(TestResourceUtil.getByronStanzaNarrow());
         }
         p.setProperty(Property.OVERFLOW_Y, OverflowPropertyValue.VISIBLE);
 
@@ -482,7 +466,7 @@ public class BlockTest extends ExtendedITextTest {
     public void overflowTest03() throws IOException, InterruptedException {
         String outFileName = destinationFolder + "overflowTest03.pdf";
         String cmpFileName = sourceFolder + "cmp_overflowTest03.pdf";
-        PdfDocument pdfDocument = new PdfDocument(new PdfWriter(outFileName));
+        PdfDocument pdfDocument = new PdfDocument(CompareTool.createTestPdfWriter(outFileName));
 
         Document doc = new Document(pdfDocument);
 
@@ -492,7 +476,7 @@ public class BlockTest extends ExtendedITextTest {
         p.setBorder(new SolidBorder(ColorConstants.BLUE, 1));
         p.setBackgroundColor(ColorConstants.YELLOW);
         for (int i = 0; i < 100; i++) {
-            p.add(textByronNarrow);
+            p.add(TestResourceUtil.getByronStanzaNarrow());
         }
         p.setProperty(Property.OVERFLOW_Y, OverflowPropertyValue.VISIBLE);
         p.setProperty(Property.OVERFLOW_X, OverflowPropertyValue.VISIBLE);
@@ -512,7 +496,7 @@ public class BlockTest extends ExtendedITextTest {
     public void overflowTest04() throws IOException, InterruptedException {
         String outFileName = destinationFolder + "overflowTest04.pdf";
         String cmpFileName = sourceFolder + "cmp_overflowTest04.pdf";
-        PdfDocument pdfDocument = new PdfDocument(new PdfWriter(outFileName));
+        PdfDocument pdfDocument = new PdfDocument(CompareTool.createTestPdfWriter(outFileName));
 
         Image image = new Image(ImageDataFactory.create(sourceFolder + "Desert.jpg"));
         image.setWidth(200);
@@ -543,7 +527,7 @@ public class BlockTest extends ExtendedITextTest {
     public void overflowTest05() throws IOException, InterruptedException {
         String outFileName = destinationFolder + "overflowTest05.pdf";
         String cmpFileName = sourceFolder + "cmp_overflowTest05.pdf";
-        PdfDocument pdfDocument = new PdfDocument(new PdfWriter(outFileName));
+        PdfDocument pdfDocument = new PdfDocument(CompareTool.createTestPdfWriter(outFileName));
 
         Document doc = new Document(pdfDocument);
 
@@ -577,7 +561,7 @@ public class BlockTest extends ExtendedITextTest {
     public void overflowTest06() throws IOException, InterruptedException {
         String outFileName = destinationFolder + "overflowTest06.pdf";
         String cmpFileName = sourceFolder + "cmp_overflowTest06.pdf";
-        PdfDocument pdfDocument = new PdfDocument(new PdfWriter(outFileName));
+        PdfDocument pdfDocument = new PdfDocument(CompareTool.createTestPdfWriter(outFileName));
 
         Document doc = new Document(pdfDocument);
 
@@ -587,7 +571,7 @@ public class BlockTest extends ExtendedITextTest {
         div.setBackgroundColor(ColorConstants.GREEN);
         div.setProperty(Property.OVERFLOW_Y, OverflowPropertyValue.VISIBLE);
 
-        div.add(new Paragraph(textByron));
+        div.add(new Paragraph(TestResourceUtil.getByronStanza()));
 
         doc.add(div);
 
@@ -602,18 +586,10 @@ public class BlockTest extends ExtendedITextTest {
     public void blockFillAvailableArea01() throws IOException, InterruptedException {
         String outFileName = destinationFolder + "blockFillAvailableArea01.pdf";
         String cmpFileName = sourceFolder + "cmp_blockFillAvailableArea01.pdf";
-        PdfDocument pdfDocument = new PdfDocument(new PdfWriter(outFileName));
+        PdfDocument pdfDocument = new PdfDocument(CompareTool.createTestPdfWriter(outFileName));
 
         String textByron =
-                "When a man hath no freedom to fight for at home,\n" +
-                        "    Let him combat for that of his neighbours;\n" +
-                        "Let him think of the glories of Greece and of Rome,\n" +
-                        "    And get knocked on the head for his labours.\n" +
-                        "\n" +
-                        "To do good to Mankind is the chivalrous plan,\n" +
-                        "    And is always as nobly requited;\n" +
-                        "Then battle for Freedom wherever you can,\n" +
-                        "    And, if not shot or hanged, you'll get knighted." +
+                TestResourceUtil.getByronStanza() +
                         "To do good to Mankind is the chivalrous plan,\n" +
                         "    And is always as nobly requited;\n" +
                         "Then battle for Freedom wherever you can,\n" +
@@ -687,7 +663,7 @@ public class BlockTest extends ExtendedITextTest {
     public void marginsBordersPaddingOverflow01() throws IOException, InterruptedException {
         String outFileName = destinationFolder + "marginsBordersPaddingOverflow01.pdf";
         String cmpFileName = sourceFolder + "cmp_marginsBordersPaddingOverflow01.pdf";
-        PdfDocument pdfDocument = new PdfDocument(new PdfWriter(outFileName));
+        PdfDocument pdfDocument = new PdfDocument(CompareTool.createTestPdfWriter(outFileName));
 
         Document doc = new Document(pdfDocument);
 
@@ -709,7 +685,7 @@ public class BlockTest extends ExtendedITextTest {
     public void marginsBordersPaddingOverflow02() throws IOException, InterruptedException {
         String outFileName = destinationFolder + "marginsBordersPaddingOverflow02.pdf";
         String cmpFileName = sourceFolder + "cmp_marginsBordersPaddingOverflow02.pdf";
-        PdfDocument pdfDocument = new PdfDocument(new PdfWriter(outFileName));
+        PdfDocument pdfDocument = new PdfDocument(CompareTool.createTestPdfWriter(outFileName));
 
         Document doc = new Document(pdfDocument);
 
@@ -733,7 +709,7 @@ public class BlockTest extends ExtendedITextTest {
     public void marginsBordersPaddingOverflow03() throws IOException, InterruptedException {
         String outFileName = destinationFolder + "marginsBordersPaddingOverflow03.pdf";
         String cmpFileName = sourceFolder + "cmp_marginsBordersPaddingOverflow03.pdf";
-        PdfDocument pdfDocument = new PdfDocument(new PdfWriter(outFileName));
+        PdfDocument pdfDocument = new PdfDocument(CompareTool.createTestPdfWriter(outFileName));
 
         Document doc = new Document(pdfDocument);
 
@@ -775,7 +751,7 @@ public class BlockTest extends ExtendedITextTest {
     public void borderRadiusTest01() throws IOException, InterruptedException {
         String outFileName = destinationFolder + "borderRadiusTest01.pdf";
         String cmpFileName = sourceFolder + "cmp_borderRadiusTest01.pdf";
-        PdfDocument pdfDocument = new PdfDocument(new PdfWriter(outFileName));
+        PdfDocument pdfDocument = new PdfDocument(CompareTool.createTestPdfWriter(outFileName));
 
         Document doc = new Document(pdfDocument);
 
@@ -830,7 +806,7 @@ public class BlockTest extends ExtendedITextTest {
     public void borderRadiusTest02() throws IOException, InterruptedException {
         String outFileName = destinationFolder + "borderRadiusTest02.pdf";
         String cmpFileName = sourceFolder + "cmp_borderRadiusTest02.pdf";
-        PdfDocument pdfDocument = new PdfDocument(new PdfWriter(outFileName));
+        PdfDocument pdfDocument = new PdfDocument(CompareTool.createTestPdfWriter(outFileName));
 
         Document doc = new Document(pdfDocument);
 
@@ -867,7 +843,7 @@ public class BlockTest extends ExtendedITextTest {
     public void borderRadiusTest03() throws IOException, InterruptedException {
         String outFileName = destinationFolder + "borderRadiusTest03.pdf";
         String cmpFileName = sourceFolder + "cmp_borderRadiusTest03.pdf";
-        PdfDocument pdfDocument = new PdfDocument(new PdfWriter(outFileName));
+        PdfDocument pdfDocument = new PdfDocument(CompareTool.createTestPdfWriter(outFileName));
 
         Document doc = new Document(pdfDocument);
 
@@ -930,7 +906,7 @@ public class BlockTest extends ExtendedITextTest {
     public void borderRadiusTest04() throws IOException, InterruptedException {
         String outFileName = destinationFolder + "borderRadiusTest04.pdf";
         String cmpFileName = sourceFolder + "cmp_borderRadiusTest04.pdf";
-        PdfDocument pdfDocument = new PdfDocument(new PdfWriter(outFileName));
+        PdfDocument pdfDocument = new PdfDocument(CompareTool.createTestPdfWriter(outFileName));
 
         Document doc = new Document(pdfDocument);
 
@@ -994,7 +970,7 @@ public class BlockTest extends ExtendedITextTest {
     public void borderRadiusTest05() throws IOException, InterruptedException {
         String outFileName = destinationFolder + "borderRadiusTest05.pdf";
         String cmpFileName = sourceFolder + "cmp_borderRadiusTest05.pdf";
-        PdfDocument pdfDocument = new PdfDocument(new PdfWriter(outFileName));
+        PdfDocument pdfDocument = new PdfDocument(CompareTool.createTestPdfWriter(outFileName));
 
         Document doc = new Document(pdfDocument);
 
@@ -1053,7 +1029,7 @@ public class BlockTest extends ExtendedITextTest {
     public void borderRadiusTest06() throws IOException, InterruptedException {
         String outFileName = destinationFolder + "borderRadiusTest06.pdf";
         String cmpFileName = sourceFolder + "cmp_borderRadiusTest06.pdf";
-        PdfDocument pdfDocument = new PdfDocument(new PdfWriter(outFileName));
+        PdfDocument pdfDocument = new PdfDocument(CompareTool.createTestPdfWriter(outFileName));
 
         Document doc = new Document(pdfDocument);
 
@@ -1114,7 +1090,7 @@ public class BlockTest extends ExtendedITextTest {
     public void heightShouldBeIncreasedUpToSetHeightTest01() throws IOException, InterruptedException {
         String outFileName = destinationFolder + "heightShouldBeIncreasedUpToSetHeightTest01.pdf";
         String cmpFileName = sourceFolder + "cmp_heightShouldBeIncreasedUpToSetHeightTest01.pdf";
-        PdfDocument pdfDocument = new PdfDocument(new PdfWriter(outFileName));
+        PdfDocument pdfDocument = new PdfDocument(CompareTool.createTestPdfWriter(outFileName));
 
         Document doc = new Document(pdfDocument);
 
@@ -1131,7 +1107,7 @@ public class BlockTest extends ExtendedITextTest {
     public void paragraphVerticalAlignmentTest01() throws IOException, InterruptedException {
         String outFileName = destinationFolder + "paragraphVerticalAlignmentTest01.pdf";
         String cmpFileName = sourceFolder + "paragraphVerticalAlignmentTest01.pdf";
-        PdfDocument pdfDocument = new PdfDocument(new PdfWriter(outFileName));
+        PdfDocument pdfDocument = new PdfDocument(CompareTool.createTestPdfWriter(outFileName));
 
         Document doc = new Document(pdfDocument);
         FontProvider fontProvider = new FontProvider();

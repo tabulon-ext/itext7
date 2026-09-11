@@ -22,27 +22,23 @@
  */
 package com.itextpdf.kernel.pdf;
 
-import com.itextpdf.commons.utils.MessageFormatUtil;
 import com.itextpdf.io.font.constants.StandardFonts;
 import com.itextpdf.io.logs.IoLogMessageConstant;
 import com.itextpdf.kernel.font.PdfFontFactory;
 import com.itextpdf.kernel.geom.Rectangle;
 import com.itextpdf.kernel.logs.KernelLogMessageConstant;
 import com.itextpdf.kernel.pdf.action.PdfAction;
-import com.itextpdf.kernel.pdf.annot.PdfFileAttachmentAnnotation;
 import com.itextpdf.kernel.pdf.annot.PdfLinkAnnotation;
 import com.itextpdf.kernel.pdf.annot.PdfScreenAnnotation;
 import com.itextpdf.kernel.pdf.canvas.CanvasTag;
 import com.itextpdf.kernel.pdf.canvas.PdfCanvas;
-import com.itextpdf.kernel.pdf.filespec.PdfFileSpec;
 import com.itextpdf.kernel.pdf.tagging.PdfMcr;
 import com.itextpdf.kernel.pdf.tagging.PdfMcrDictionary;
 import com.itextpdf.kernel.pdf.tagging.PdfMcrNumber;
-import com.itextpdf.kernel.pdf.tagging.PdfStructElem;
 import com.itextpdf.kernel.pdf.tagging.PdfObjRef;
+import com.itextpdf.kernel.pdf.tagging.PdfStructElem;
+import com.itextpdf.kernel.utils.CompareToolResult;
 import com.itextpdf.kernel.utils.CompareTool;
-import com.itextpdf.kernel.utils.CompareTool.CompareResult;
-import com.itextpdf.test.AssertUtil;
 import com.itextpdf.test.ExtendedITextTest;
 import com.itextpdf.test.TestUtil;
 import com.itextpdf.test.annotations.LogMessage;
@@ -50,14 +46,13 @@ import com.itextpdf.test.annotations.LogMessages;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Tag;
-
-import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Test;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 @Tag("IntegrationTest")
 public class ParentTreeTest extends ExtendedITextTest {
@@ -410,7 +405,7 @@ public class ParentTreeTest extends ExtendedITextTest {
         String outPdf = destinationFolder + "allObjRefDontHaveStructParent.pdf";
         String cmpPdf = sourceFolder + "cmp_allObjRefDontHaveStructParent.pdf";
 
-        PdfDocument taggedPdf = new PdfDocument(new PdfReader(pdf), new PdfWriter(outPdf));
+        PdfDocument taggedPdf = new PdfDocument(new PdfReader(pdf), CompareTool.createTestPdfWriter(outPdf));
         taggedPdf.close();
         Assertions.assertNull(new CompareTool().compareByContent(outPdf, cmpPdf, destinationFolder, "diff"));
     }
@@ -424,7 +419,7 @@ public class ParentTreeTest extends ExtendedITextTest {
         String outPdf = destinationFolder + "xObjDoesntHaveStructParentTest.pdf";
         String cmpPdf = sourceFolder + "cmp_xObjDoesntHaveStructParentTest.pdf";
 
-        PdfDocument taggedPdf = new PdfDocument(new PdfReader(pdf), new PdfWriter(outPdf));
+        PdfDocument taggedPdf = new PdfDocument(new PdfReader(pdf), CompareTool.createTestPdfWriter(outPdf));
         taggedPdf.close();
         Assertions.assertNull(new CompareTool().compareByContent(outPdf, cmpPdf, destinationFolder, "diff"));
     }
@@ -473,7 +468,7 @@ public class ParentTreeTest extends ExtendedITextTest {
         String outPdf = destinationFolder + "xObjNoStructParentNoModification.pdf";
 
         PdfReader reader = new PdfReader(pdf).setStrictnessLevel(PdfReader.StrictnessLevel.CONSERVATIVE);
-        PdfDocument doc = new PdfDocument(reader, new PdfWriter(outPdf));
+        PdfDocument doc = new PdfDocument(reader, CompareTool.createTestPdfWriter(outPdf));
         PdfObject obj =  doc.getCatalog().getPdfObject().getAsDictionary(PdfName.StructTreeRoot)
                 .getAsDictionary(PdfName.ParentTree).getAsArray(PdfName.Nums).get(1);
         PdfStream xObj = ((PdfDictionary) ((PdfArray) obj).get(0)).getAsDictionary(PdfName.K).getAsStream(PdfName.Stm);
@@ -538,7 +533,7 @@ public class ParentTreeTest extends ExtendedITextTest {
                 new PdfReader(sourceFolder + "pdfWithMultipleDocumentTags.pdf"),
                 new PdfWriter(new ByteArrayOutputStream()));
 
-        AssertUtil.doesNotThrow(() -> pdfDoc.getTagStructureContext().normalizeDocumentRootTag());
+        Assertions.assertDoesNotThrow(() -> pdfDoc.getTagStructureContext().normalizeDocumentRootTag());
     }
 
     @Test
@@ -573,7 +568,7 @@ public class ParentTreeTest extends ExtendedITextTest {
         PdfDocument outDocument = new PdfDocument(outReader);
         PdfReader cmpReader = CompareTool.createOutputReader(cmpFileName);
         PdfDocument cmpDocument = new PdfDocument(cmpReader);
-        CompareResult result = new CompareTool().compareByCatalog(outDocument, cmpDocument);
+        CompareToolResult result = new CompareTool().compareDocumentsByCatalog(outDocument, cmpDocument);
         if (!result.isOk()) {
             System.out.println(result.getReport());
         }

@@ -117,6 +117,7 @@ public final class Property {
      */
     public static final int FONT_SET = 98;
     public static final int FONT_SIZE = 24;
+    public static final int FOOTNOTES_PROPERTIES = 160;
     public static final int FORCED_PLACEMENT = 26;
     public static final int FULL = 25;
     public static final int GRID_COLUMN_END = 147;
@@ -147,9 +148,11 @@ public final class Property {
     public static final int KEEP_WITH_NEXT = 81;
     public static final int LEADING = 33;
     public static final int LEFT = 34;
+    public static final int LINK_ANNOTATION = 88;
+    public static final int LINE_CAP_STYLE = 166;
     public static final int LINE_DRAWER = 35;
     public static final int LINE_HEIGHT = 124;
-    public static final int LINK_ANNOTATION = 88;
+    public static final int LINE_JOIN_STYLE = 167;
     public static final int LIST_START = 36;
     public static final int LIST_SYMBOL = 37;
     public static final int LIST_SYMBOL_ALIGNMENT = 38;
@@ -168,6 +171,7 @@ public final class Property {
     public static final int META_INFO = 135;
     public static final int MIN_HEIGHT = 85;
     public static final int MIN_WIDTH = 80;
+    public static final int MITER_LIMIT = 168;
     public static final int NO_SOFT_WRAP_INLINE = 118;
 
     public static final int OBJECT_FIT = 125;
@@ -238,14 +242,21 @@ public final class Property {
     public static final int ADD_MARKED_CONTENT_TEXT = 137;
     public static final int TREAT_AS_CONTINUOUS_CONTAINER = 140;
     public static final int TREAT_AS_CONTINUOUS_CONTAINER_RESULT = 141;
+    public static final int IGNORE_AREA_AND_SECTION_BREAKS = 161;
+    public static final int TOP_CALCULATED = 162;
+    public static final int LEFT_CALCULATED = 163;
+    public static final int POSITIONED_ELEMENT_WRAPPED = 164;
+    public static final int POSITIONED_ELEMENT_WRAPPER_LAYOUT = 165;
+    public static final int WRITING_MODE = 169;
+    public static final int TEXT_ORIENTATION = 170;
 
     /**
      * Some properties must be passed to {@link IPropertyContainer} objects that
      * are lower in the document's hierarchy. Most inherited properties are
-     * related to textual operations. Indicates whether or not this type of property is inheritable.
+     * related to textual operations. Indicates whether this type of property is inheritable.
      */
     private static final boolean[] INHERITED_PROPERTIES;
-    private static final int MAX_INHERITED_PROPERTY_ID = 157;
+    private static final int MAX_INHERITED_PROPERTY_ID = 170;
 
     static {
         INHERITED_PROPERTIES = new boolean[MAX_INHERITED_PROPERTY_ID + 1];
@@ -267,6 +278,7 @@ public final class Property {
         INHERITED_PROPERTIES[Property.FONT_SIZE] = true;
         INHERITED_PROPERTIES[Property.FONT_STYLE] = true;
         INHERITED_PROPERTIES[Property.FONT_WEIGHT] = true;
+        INHERITED_PROPERTIES[Property.FOOTNOTES_PROPERTIES] = true;
         INHERITED_PROPERTIES[Property.FORCED_PLACEMENT] = true;
         INHERITED_PROPERTIES[Property.HYPHENATION] = true;
         INHERITED_PROPERTIES[Property.ITALIC_SIMULATION] = true;
@@ -294,6 +306,13 @@ public final class Property {
         INHERITED_PROPERTIES[Property.META_INFO] = true;
         INHERITED_PROPERTIES[Property.ADD_MARKED_CONTENT_TEXT] = true;
         INHERITED_PROPERTIES[Property.TREAT_AS_CONTINUOUS_CONTAINER] = true;
+        INHERITED_PROPERTIES[Property.IGNORE_AREA_AND_SECTION_BREAKS] = true;
+        INHERITED_PROPERTIES[Property.POSITIONED_ELEMENT_WRAPPER_LAYOUT] = true;
+        INHERITED_PROPERTIES[Property.LINE_CAP_STYLE] = true;
+        INHERITED_PROPERTIES[Property.LINE_JOIN_STYLE] = true;
+        INHERITED_PROPERTIES[Property.MITER_LIMIT] = true;
+        INHERITED_PROPERTIES[Property.WRITING_MODE] = true;
+        INHERITED_PROPERTIES[Property.TEXT_ORIENTATION] = true;
     }
 
     private Property() {

@@ -23,6 +23,7 @@
 package com.itextpdf.forms.fields;
 
 import com.itextpdf.commons.datastructures.NullableContainer;
+import com.itextpdf.commons.logs.LazyLogger;
 import com.itextpdf.commons.utils.EncodingUtil;
 import com.itextpdf.commons.utils.MessageFormatUtil;
 import com.itextpdf.forms.PdfAcroForm;
@@ -58,8 +59,6 @@ import com.itextpdf.kernel.pdf.tagutils.AccessibilityProperties;
 import com.itextpdf.kernel.pdf.xobject.PdfFormXObject;
 import com.itextpdf.layout.properties.TextAlignment;
 import com.itextpdf.layout.tagging.IAccessibleElement;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -115,7 +114,7 @@ public class PdfFormField extends AbstractPdfFormField {
      */
     private static final Set<PdfName> FORM_FIELD_KEYS = new HashSet<>();
 
-    private static final Logger LOGGER = LoggerFactory.getLogger(PdfFormField.class);
+    private static final LazyLogger LOGGER = new LazyLogger(PdfFormField.class);
 
     protected String text;
     protected ImageData img;
@@ -177,14 +176,14 @@ public class PdfFormField extends AbstractPdfFormField {
         } else {
             for (PdfObject kid : kidsArray) {
                 if (kid.isFlushed()) {
-                    LOGGER.info(FormsLogMessageConstants.FORM_FIELD_WAS_FLUSHED);
+                    LOGGER.info(() -> FormsLogMessageConstants.FORM_FIELD_WAS_FLUSHED);
                     continue;
                 }
                 AbstractPdfFormField childField = PdfFormField.makeFormFieldOrAnnotation(kid, getDocument());
                 if (childField != null) {
                     this.setChildField(childField);
                 } else {
-                    LOGGER.warn(MessageFormatUtil.format(FormsLogMessageConstants.CANNOT_CREATE_FORMFIELD,
+                    LOGGER.warn(() -> MessageFormatUtil.format(FormsLogMessageConstants.CANNOT_CREATE_FORMFIELD,
                             pdfObject.getIndirectReference() == null ? pdfObject :
                                     (PdfObject) pdfObject.getIndirectReference()));
                 }
@@ -454,7 +453,7 @@ public class PdfFormField extends AbstractPdfFormField {
      */
     public PdfFormField setValue(String value, String displayValue) {
         if (value == null) {
-            LOGGER.warn(FormsLogMessageConstants.FIELD_VALUE_CANNOT_BE_NULL);
+            LOGGER.warn(() -> FormsLogMessageConstants.FIELD_VALUE_CANNOT_BE_NULL);
             return this;
         }
 
@@ -482,7 +481,7 @@ public class PdfFormField extends AbstractPdfFormField {
         if (kids != null) {
             kids.remove(fieldName.getPdfObject());
             if (kids.isEmpty()) {
-                getPdfObject().remove(PdfName.Kids);
+                remove(PdfName.Kids);
             }
         }
     }
@@ -492,7 +491,7 @@ public class PdfFormField extends AbstractPdfFormField {
      */
     public void removeChildren() {
         childFields.clear();
-        getPdfObject().remove(PdfName.Kids);
+        remove(PdfName.Kids);
     }
 
     /**
@@ -1029,8 +1028,7 @@ public class PdfFormField extends AbstractPdfFormField {
             // Font from DR may not be added to document through PdfResource.
             getDocument().addFont(getFont());
         } else if (!PdfName.Sig.equals(getFormType())) {
-            getPdfObject().remove(PdfName.DA);
-            setModified();
+            remove(PdfName.DA);
         }
     }
 
@@ -1126,7 +1124,7 @@ public class PdfFormField extends AbstractPdfFormField {
             checkType = CheckBoxType.CROSS;
         }
         this.checkType = new NullableContainer<>(checkType);
-        if (getPdfConformance() != null && getPdfConformance().isPdfAOrUaOrWtpdf()) {
+        if (getPdfConformance() != null && getPdfConformance().conformsToAny()) {
             return this;
         }
         try {
@@ -1381,7 +1379,7 @@ public class PdfFormField extends AbstractPdfFormField {
                         .writeSpace()
                         .writeBytes(k);
             } else {
-                LOGGER.error(FormsLogMessageConstants.UNSUPPORTED_COLOR_IN_DA);
+                LOGGER.error(() -> FormsLogMessageConstants.UNSUPPORTED_COLOR_IN_DA);
             }
         }
         return new PdfString(output.toByteArray());
@@ -1412,7 +1410,7 @@ public class PdfFormField extends AbstractPdfFormField {
 
     private PdfFormField setFieldValue(String value, boolean generateAppearance) {
         if (value == null) {
-            LOGGER.warn(FormsLogMessageConstants.FIELD_VALUE_CANNOT_BE_NULL);
+            LOGGER.warn(() -> FormsLogMessageConstants.FIELD_VALUE_CANNOT_BE_NULL);
             return this;
         }
 

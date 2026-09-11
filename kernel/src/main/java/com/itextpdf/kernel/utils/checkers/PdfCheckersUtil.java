@@ -95,7 +95,7 @@ public final class PdfCheckersUtil {
 
             final String NS_ID = conformance.isPdfA() ? XMPConst.NS_PDFA_ID : XMPConst.NS_PDFUA_ID;
 
-            if (conformance.isPdfAOrUa()) {
+            if (conformance.isPdfA() || conformance.isPdfUA()) {
                 XMPProperty actualPart = metadata.getProperty(NS_ID, XMPConst.PART);
                 String expectedPart = conformance.isPdfA() ? conformance.getAConformance().getPart() :
                         conformance.getUAConformance().getPart();
@@ -120,16 +120,15 @@ public final class PdfCheckersUtil {
 
     private static void checkWellTaggedMetadata(XMPMeta metadata, PdfConformance conformance,
                                          Function<String, PdfException> exceptionSupplier) {
-        if (WellTaggedPdfConformance.FOR_ACCESSIBILITY == conformance.getWtpdfConformance()) {
-            XMPProperty wtpdfProperty = null;
-            try {
-                wtpdfProperty = metadata.getProperty(
-                        XMPConst.NS_DECLARATIONS, XMPConst.DECLARATIONS + "/[1]/" + XMPConst.CONFORMS_TO);
-            } catch (Exception ignored) {
-            }
-            if (wtpdfProperty == null || !XMPConst.NS_WTPDF_ACCESSIBILITY_ID.equals(wtpdfProperty.getValue())) {
+        PdfConformance xmpConformance = PdfConformance.getConformance(metadata);
+
+        if (xmpConformance.getWtpdfConformances() == null || !xmpConformance.isWellTaggedConformanceIncluded(conformance)) {
+            if (conformance.conformsTo(WellTaggedPdfConformance.FOR_ACCESSIBILITY)) {
                 throw exceptionSupplier.apply(
-                        KernelExceptionMessageConstant.XMP_METADATA_HEADER_SHALL_CONTAIN_WTPDF_METADATA);
+                        KernelExceptionMessageConstant.XMP_METADATA_HEADER_SHALL_CONTAIN_WTPDF_ACCESSIBILITY_METADATA);
+            } else if (conformance.conformsTo(WellTaggedPdfConformance.FOR_REUSE)) {
+                throw exceptionSupplier.apply(
+                        KernelExceptionMessageConstant.XMP_METADATA_HEADER_SHALL_CONTAIN_WTPDF_REUSE_METADATA);
             }
         }
     }

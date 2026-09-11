@@ -42,7 +42,6 @@ import com.itextpdf.layout.element.AreaBreak;
 import com.itextpdf.layout.element.Paragraph;
 import com.itextpdf.layout.element.Text;
 import com.itextpdf.layout.logs.LayoutLogMessageConstant;
-import com.itextpdf.test.AssertUtil;
 import com.itextpdf.test.ExtendedITextTest;
 import com.itextpdf.test.LogLevelConstants;
 import com.itextpdf.test.TestUtil;
@@ -54,6 +53,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Tag;
@@ -72,11 +72,16 @@ public class DefaultLayoutTest extends ExtendedITextTest {
         createDestinationFolder(destinationFolder);
     }
 
+    @AfterAll
+    public static void afterClass() {
+        CompareTool.cleanup(destinationFolder);
+    }
+
     @Test
     public void multipleAdditionsOfSameModelElementTest() throws IOException, InterruptedException {
         String outFileName = destinationFolder + "multipleAdditionsOfSameModelElementTest1.pdf";
         String cmpFileName = sourceFolder + "cmp_multipleAdditionsOfSameModelElementTest1.pdf";
-        PdfDocument pdfDocument = new PdfDocument(new PdfWriter(outFileName));
+        PdfDocument pdfDocument = new PdfDocument(CompareTool.createTestPdfWriter(outFileName));
         pdfDocument.setTagged();
 
         Document document = new Document(pdfDocument);
@@ -93,7 +98,7 @@ public class DefaultLayoutTest extends ExtendedITextTest {
     public void rendererTest01() throws IOException, InterruptedException {
         String outFileName = destinationFolder + "rendererTest01.pdf";
         String cmpFileName = sourceFolder + "cmp_rendererTest01.pdf";
-        PdfDocument pdfDocument = new PdfDocument(new PdfWriter(outFileName));
+        PdfDocument pdfDocument = new PdfDocument(CompareTool.createTestPdfWriter(outFileName));
 
         Document document = new Document(pdfDocument);
 
@@ -112,7 +117,7 @@ public class DefaultLayoutTest extends ExtendedITextTest {
     public void emptyParagraphsTest01() throws IOException, InterruptedException {
         String outFileName = destinationFolder + "emptyParagraphsTest01.pdf";
         String cmpFileName = sourceFolder + "cmp_emptyParagraphsTest01.pdf";
-        PdfDocument pdfDocument = new PdfDocument(new PdfWriter(outFileName));
+        PdfDocument pdfDocument = new PdfDocument(CompareTool.createTestPdfWriter(outFileName));
 
         Document document = new Document(pdfDocument);
 
@@ -134,7 +139,7 @@ public class DefaultLayoutTest extends ExtendedITextTest {
     public void emptyParagraphsTest02() throws IOException, InterruptedException {
         String outFileName = destinationFolder + "emptyParagraphsTest02.pdf";
         String cmpFileName = sourceFolder + "cmp_emptyParagraphsTest02.pdf";
-        PdfDocument pdfDocument = new PdfDocument(new PdfWriter(outFileName));
+        PdfDocument pdfDocument = new PdfDocument(CompareTool.createTestPdfWriter(outFileName));
 
         Document document = new Document(pdfDocument);
 
@@ -150,7 +155,7 @@ public class DefaultLayoutTest extends ExtendedITextTest {
     public void textWithWhitespacesTest01() throws IOException, InterruptedException {
         String outFileName = destinationFolder + "textWithWhitespacesTest01.pdf";
         String cmpFileName = sourceFolder + "cmp_textWithWhitespacesTest01.pdf";
-        PdfDocument pdfDoc = new PdfDocument(new PdfWriter(outFileName));
+        PdfDocument pdfDoc = new PdfDocument(CompareTool.createTestPdfWriter(outFileName));
 
         Document doc = new Document(pdfDoc);
         doc.add(new Paragraph("Test non-breaking spaces"));
@@ -174,7 +179,7 @@ public class DefaultLayoutTest extends ExtendedITextTest {
         String outFileName = destinationFolder + "addParagraphOnShortPage1.pdf";
         String cmpFileName = sourceFolder + "cmp_addParagraphOnShortPage1.pdf";
 
-        PdfDocument pdfDoc = new PdfDocument(new PdfWriter(outFileName));
+        PdfDocument pdfDoc = new PdfDocument(CompareTool.createTestPdfWriter(outFileName));
         Document doc = new Document(pdfDoc, new PageSize(500, 70));
 
         Paragraph p = new Paragraph();
@@ -199,7 +204,7 @@ public class DefaultLayoutTest extends ExtendedITextTest {
         String outFileName = destinationFolder + "addParagraphOnShortPage2.pdf";
         String cmpFileName = sourceFolder + "cmp_addParagraphOnShortPage2.pdf";
 
-        PdfDocument pdfDoc = new PdfDocument(new PdfWriter(outFileName));
+        PdfDocument pdfDoc = new PdfDocument(CompareTool.createTestPdfWriter(outFileName));
         Document doc = new Document(pdfDoc, new PageSize(300, 50));
 
         Paragraph p = new Paragraph();
@@ -228,7 +233,7 @@ public class DefaultLayoutTest extends ExtendedITextTest {
         float shortHeight = 15;
         // The sum of either top and bottom page margins, or left and right page margins
         float margins = 36 + 36;
-        PdfDocument pdfDoc = new PdfDocument(new PdfWriter(outFileName));
+        PdfDocument pdfDoc = new PdfDocument(CompareTool.createTestPdfWriter(outFileName));
         Document doc = new Document(pdfDoc, new PageSize(margins + contentWidth + EPS, margins + shortHeight));
 
         Paragraph p = new Paragraph("hello");
@@ -247,9 +252,9 @@ public class DefaultLayoutTest extends ExtendedITextTest {
         String outFileName = destinationFolder + "closeEmptyDocumentTest.pdf";
         String cmpFileName = sourceFolder + "cmp_closeEmptyDocumentTest.pdf";
 
-        PdfDocument pdfDocument = new PdfDocument(new PdfWriter(outFileName));
+        PdfDocument pdfDocument = new PdfDocument(CompareTool.createTestPdfWriter(outFileName));
         Document document = new Document(pdfDocument);
-        AssertUtil.doesNotThrow(() -> document.close());
+        Assertions.assertDoesNotThrow(() -> document.close());
 
         Assertions.assertNull(new CompareTool().compareByContent(outFileName, cmpFileName, destinationFolder, "diff"));
     }
@@ -259,12 +264,12 @@ public class DefaultLayoutTest extends ExtendedITextTest {
         String outFileName = destinationFolder + "closeEmptyDocumentWithEventTest.pdf";
         String cmpFileName = sourceFolder + "cmp_closeEmptyDocumentWithEventTest.pdf";
 
-        PdfDocument pdfDocument = new PdfDocument(new PdfWriter(outFileName));
+        PdfDocument pdfDocument = new PdfDocument(CompareTool.createTestPdfWriter(outFileName));
         new PdfLayer("Some layer", pdfDocument);
 
         ParagraphAdderHandler handler = new ParagraphAdderHandler();
         pdfDocument.addEventHandler(PdfDocumentEvent.START_PAGE, handler);
-        AssertUtil.doesNotThrow(() -> pdfDocument.close());
+        Assertions.assertDoesNotThrow(() -> pdfDocument.close());
 
         Assertions.assertNull(new CompareTool().compareByContent(outFileName, cmpFileName, destinationFolder, "diff"));
     }
@@ -273,7 +278,7 @@ public class DefaultLayoutTest extends ExtendedITextTest {
     public void checkPageSizeOfClosedEmptyDocumentTest() throws IOException {
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
         PdfDocument pdfDocument = new PdfDocument(new PdfWriter(baos));
-        AssertUtil.doesNotThrow(() -> pdfDocument.close());
+        Assertions.assertDoesNotThrow(() -> pdfDocument.close());
         byte[] bytes = baos.toByteArray();
         baos.close();
 
@@ -290,11 +295,11 @@ public class DefaultLayoutTest extends ExtendedITextTest {
         String outFileName = destinationFolder + "closeEmptyDocumentWithRemovingEventTest.pdf";
         String cmpFileName = sourceFolder + "cmp_closeEmptyDocumentWithRemovingEventTest.pdf";
 
-        PdfDocument pdfDocument = new PdfDocument(new PdfWriter(outFileName));
+        PdfDocument pdfDocument = new PdfDocument(CompareTool.createTestPdfWriter(outFileName));
 
         PageRemoverHandler handler = new PageRemoverHandler();
         pdfDocument.addEventHandler(PdfDocumentEvent.START_PAGE, handler);
-        AssertUtil.doesNotThrow(() -> pdfDocument.close());
+        Assertions.assertDoesNotThrow(() -> pdfDocument.close());
 
         Assertions.assertNull(new CompareTool().compareByContent(outFileName, cmpFileName, destinationFolder, "diff"));
     }

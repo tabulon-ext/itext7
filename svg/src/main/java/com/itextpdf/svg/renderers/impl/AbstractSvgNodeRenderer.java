@@ -22,6 +22,7 @@
  */
 package com.itextpdf.svg.renderers.impl;
 
+import com.itextpdf.commons.logs.LazyLogger;
 import com.itextpdf.commons.utils.StringNormalizer;
 import com.itextpdf.kernel.colors.Color;
 import com.itextpdf.kernel.colors.ColorConstants;
@@ -30,6 +31,7 @@ import com.itextpdf.kernel.geom.AffineTransform;
 import com.itextpdf.kernel.geom.NoninvertibleTransformException;
 import com.itextpdf.kernel.geom.Rectangle;
 import com.itextpdf.kernel.pdf.canvas.PdfCanvas;
+import com.itextpdf.kernel.pdf.canvas.PdfCanvasConstants;
 import com.itextpdf.kernel.pdf.extgstate.PdfExtGState;
 import com.itextpdf.layout.properties.TransparentColor;
 import com.itextpdf.styledxmlparser.css.CommonCssConstants;
@@ -53,8 +55,6 @@ import com.itextpdf.svg.renderers.ISvgPaintServer;
 import com.itextpdf.svg.renderers.SvgDrawContext;
 import com.itextpdf.svg.utils.SvgCssUtils;
 import com.itextpdf.svg.utils.TransformUtils;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.util.HashMap;
 import java.util.List;
@@ -68,7 +68,7 @@ public abstract class AbstractSvgNodeRenderer implements ISvgNodeRenderer {
     private static final MarkerVertexType[] MARKER_VERTEX_TYPES = new MarkerVertexType[] {MarkerVertexType.MARKER_START,
             MarkerVertexType.MARKER_MID, MarkerVertexType.MARKER_END};
 
-    private static final Logger LOGGER = LoggerFactory.getLogger(AbstractSvgNodeRenderer.class);
+    private static final LazyLogger LOGGER = new LazyLogger(AbstractSvgNodeRenderer.class);
 
     /**
      * Map that contains attributes and styles used for drawing operations.
@@ -230,6 +230,7 @@ public abstract class AbstractSvgNodeRenderer implements ISvgNodeRenderer {
         return CssDimensionParsingUtils.parseAbsoluteFontSize(fontSizeAttribute);
     }
 
+    // TODO DEVSIX-9984 Fix the link being lowercase in C#
     /**
      * Gets the viewbox from the first parent element which can define it.
      * <p>
@@ -357,7 +358,7 @@ public abstract class AbstractSvgNodeRenderer implements ISvgNodeRenderer {
             try {
                 context.getCurrentCanvas().concatMatrix(transform.createInverse());
             } catch (NoninvertibleTransformException e) {
-                LOGGER.warn(SvgLogMessageConstant.NON_INVERTIBLE_TRANSFORMATION_MATRIX_FOR_NON_SCALING_STROKE);
+                LOGGER.warn(() -> SvgLogMessageConstant.NON_INVERTIBLE_TRANSFORMATION_MATRIX_FOR_NON_SCALING_STROKE);
                 transform = null;
             }
         }
@@ -482,6 +483,11 @@ public abstract class AbstractSvgNodeRenderer implements ISvgNodeRenderer {
                 currentCanvas.setStrokeColor(strokeProperties.getColor());
             }
             currentCanvas.setLineWidth(strokeProperties.getWidth());
+            currentCanvas.setLineCapStyle(strokeProperties.getLineCapStyle());
+            currentCanvas.setLineJoinStyle(strokeProperties.getLineJoinStyle());
+            if (strokeProperties.getLineJoinStyle() == PdfCanvasConstants.LineJoinStyle.MITER) {
+                currentCanvas.setMiterLimit(strokeProperties.getMiterLimit());
+            }
 
             if (!CssUtils.compareFloats(strokeProperties.getOpacity(), 1f)) {
                 // TODO DEVSIX-8854 Draw SVG elements with transparent stroke in 2 steps
@@ -723,9 +729,16 @@ public abstract class AbstractSvgNodeRenderer implements ISvgNodeRenderer {
                     SvgStrokeParameterConverter.convertStrokeDashParameters(strokeDashArrayRawValue,
                             strokeDashOffsetRawValue, getCurrentFontSize(context), context);
 
+            int lineCap = SvgStrokeParameterConverter.convertStrokeLineCapStyle(getAttribute(Attributes.STROKE_LINECAP));
+            int lineJoin = SvgStrokeParameterConverter.convertStrokeLineJoinStyle(getAttribute(Attributes.STROKE_LINEJOIN));
+            float miterLimit = SvgStrokeParameterConverter.convertStrokeMiterLimit(
+                    getAttribute(Attributes.STROKE_MITERLIMIT));
+
+
             if (strokeWidth > 0) {
                 doStroke = true;
-                return new StrokeProperties(strokeColor, strokeWidth, strokeOpacity, lineDashParameters);
+                return new StrokeProperties(strokeColor, strokeWidth, strokeOpacity, lineDashParameters, lineCap,
+                        lineJoin, miterLimit);
             }
         }
         return null;
@@ -754,29 +767,49 @@ public abstract class AbstractSvgNodeRenderer implements ISvgNodeRenderer {
         final float width;
         final float opacity;
         final SvgStrokeParameterConverter.PdfLineDashParameters lineDashParameters;
+        final int lineCapStyle;
+        final int lineJoinStyle;
+        final float miterLimit;
 
-        public StrokeProperties(Color color, float width, float opacity,
-                SvgStrokeParameterConverter.PdfLineDashParameters lineDashParameters) {
+        StrokeProperties(Color color, float width, float opacity,
+                SvgStrokeParameterConverter.PdfLineDashParameters lineDashParameters, int lineCapStyle,
+                int lineJoinStyle, float miterLimit) {
+
             this.color = color;
             this.width = width;
             this.opacity = opacity;
             this.lineDashParameters = lineDashParameters;
+            this.lineCapStyle = lineCapStyle;
+            this.lineJoinStyle = lineJoinStyle;
+            this.miterLimit = miterLimit;
         }
 
-        public Color getColor() {
+        Color getColor() {
             return color;
         }
 
-        public float getWidth() {
+        float getWidth() {
             return width;
         }
 
-        public float getOpacity() {
+        float getOpacity() {
             return opacity;
         }
 
-        public PdfLineDashParameters getLineDashParameters() {
+        PdfLineDashParameters getLineDashParameters() {
             return lineDashParameters;
+        }
+
+        int getLineCapStyle() {
+            return lineCapStyle;
+        }
+
+        int getLineJoinStyle() {
+            return lineJoinStyle;
+        }
+
+        float getMiterLimit() {
+            return miterLimit;
         }
     }
 }

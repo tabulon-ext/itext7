@@ -22,7 +22,6 @@
  */
 package com.itextpdf.signatures;
 
-
 import java.io.IOException;
 import java.security.GeneralSecurityException;
 import org.junit.jupiter.api.Test;

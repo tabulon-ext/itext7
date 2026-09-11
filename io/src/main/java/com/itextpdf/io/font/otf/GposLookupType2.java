@@ -38,6 +38,17 @@ public class GposLookupType2 extends OpenTableLookup {
 
     private List<OpenTableLookup> listRules = new ArrayList<>();
 
+    /**
+     * Creates a new GPOS Lookup Type 2.
+     *
+     * @param openReader the OpenType font reader
+     * @param lookupFlag specifies processing options, e.g. whether to skip base glyphs, marks or
+     *                   ligatures during glyph substitution or positioning. See
+     *                   <a href="https://learn.microsoft.com/en-us/typography/opentype/spec/chapter2#lookup-table">Lookup table</a>
+     * @param subTableLocations the sub table locations
+     *
+     * @throws java.io.IOException if the OpenType data cannot be read
+     */
     public GposLookupType2(OpenTypeFontTableReader openReader, int lookupFlag, int[] subTableLocations) throws java.io.IOException {
         super(openReader, lookupFlag, subTableLocations);
         readSubTables();
@@ -87,6 +98,7 @@ public class GposLookupType2 extends OpenTableLookup {
             readFormat(subtableLocation);
         }
 
+        @Override
         public boolean transformOne(GlyphLine line) {
             if (line.getIdx() >= line.getEnd() || line.getIdx() < line.getStart())
                 return false;
@@ -102,10 +114,10 @@ public class GposLookupType2 extends OpenTableLookup {
                     PairValueFormat pv = m.get(gi.getGlyph().getCode());
                     if (pv != null) {
                         Glyph g2 = gi.getGlyph();
-                        line.set(line.getIdx(), new Glyph(g1, 0, 0, pv.getFirst().getXAdvance(),
-                                pv.getFirst().getYAdvance(), 0));
-                        line.set(gi.getIdx(), new Glyph(g2, 0, 0, pv.getSecond().getXAdvance(),
-                                pv.getSecond().getYAdvance(), 0));
+                        line.set(line.getIdx(), new Glyph(g1, pv.getFirst().getXAdvance(),
+                                pv.getFirst().getYAdvance()));
+                        line.set(gi.getIdx(), new Glyph(g2, pv.getSecond().getXAdvance(),
+                                pv.getSecond().getYAdvance()));
                         line.setIdx(gi.getIdx());
                         changed = true;
                     }
@@ -153,6 +165,7 @@ public class GposLookupType2 extends OpenTableLookup {
             readFormat(subtableLocation);
         }
 
+        @Override
         public boolean transformOne(GlyphLine line) {
             if (line.getIdx() >= line.getEnd() || line.getIdx() < line.getStart())
                 return false;
@@ -174,8 +187,8 @@ public class GposLookupType2 extends OpenTableLookup {
             if (c2 >= pvs.length)
                 return false;
             PairValueFormat pv = pvs[c2];
-            line.set(line.getIdx(), new Glyph(g1, 0, 0, pv.getFirst().getXAdvance(), pv.getFirst().getYAdvance(), 0));
-            line.set(gi.getIdx(), new Glyph(g2, 0, 0, pv.getSecond().getXAdvance(), pv.getSecond().getYAdvance(), 0));
+            line.set(line.getIdx(), new Glyph(g1, pv.getFirst().getXAdvance(), pv.getFirst().getYAdvance()));
+            line.set(gi.getIdx(), new Glyph(g2, pv.getSecond().getXAdvance(), pv.getSecond().getYAdvance()));
             line.setIdx(gi.getIdx());
             return true;
         }

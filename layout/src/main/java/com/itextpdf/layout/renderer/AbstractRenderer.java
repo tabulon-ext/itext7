@@ -23,11 +23,13 @@
 package com.itextpdf.layout.renderer;
 
 import com.itextpdf.commons.datastructures.Tuple2;
+import com.itextpdf.commons.logs.LazyLogger;
 import com.itextpdf.commons.utils.MessageFormatUtil;
 import com.itextpdf.io.logs.IoLogMessageConstant;
 import com.itextpdf.io.util.NumberUtil;
 import com.itextpdf.kernel.colors.Color;
 import com.itextpdf.kernel.colors.gradients.AbstractLinearGradientBuilder;
+import com.itextpdf.kernel.colors.gradients.IGradientBuilder;
 import com.itextpdf.kernel.font.PdfFont;
 import com.itextpdf.kernel.geom.AffineTransform;
 import com.itextpdf.kernel.geom.Point;
@@ -77,11 +79,11 @@ import com.itextpdf.layout.properties.BoxSizingPropertyValue;
 import com.itextpdf.layout.properties.HorizontalAlignment;
 import com.itextpdf.layout.properties.OverflowPropertyValue;
 import com.itextpdf.layout.properties.Property;
+import com.itextpdf.layout.properties.VerticalTextOrientation;
 import com.itextpdf.layout.properties.Transform;
 import com.itextpdf.layout.properties.TransparentColor;
 import com.itextpdf.layout.properties.UnitValue;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.itextpdf.layout.properties.WritingMode;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -98,6 +100,12 @@ import java.util.Set;
  * this default implementation.
  */
 public abstract class AbstractRenderer implements IRenderer {
+
+    private static final LazyLogger LOGGER = new LazyLogger(AbstractRenderer.class);
+
+    /**
+     * The overlap epsilon.
+     */
     public static final float OVERLAP_EPSILON = 1e-4f;
 
     /**
@@ -154,6 +162,8 @@ public abstract class AbstractRenderer implements IRenderer {
     protected Map<Integer, Object> properties = new HashMap<>();
     protected boolean isLastRendererForModelElement = true;
 
+    private boolean relativePositioningTranslationApplied = false;
+
     /**
      * Creates a renderer.
      */
@@ -193,6 +203,8 @@ public abstract class AbstractRenderer implements IRenderer {
         // https://www.webkit.org/blog/116/webcore-rendering-iii-layout-basics
         // "The rules can be summarized as follows:"...
         Integer positioning = renderer.<Integer>getProperty(Property.POSITION);
+        boolean verticalCoordinateMissing = AbstractRenderer.verticalCoordinateMissingForAbsolutePosition(renderer);
+        boolean horizontalCoordinateMissing = AbstractRenderer.horizontalCoordinateMissingForAbsolutePosition(renderer);
         if (positioning == null || positioning == LayoutPosition.RELATIVE || positioning == LayoutPosition.STATIC) {
             childRenderers.add(renderer);
         } else if (positioning == LayoutPosition.FIXED) {
@@ -206,12 +218,8 @@ public abstract class AbstractRenderer implements IRenderer {
                 root.addChild(renderer);
             }
         } else if (positioning == LayoutPosition.ABSOLUTE) {
-            // For position=absolute, if none of the top, bottom, left, right properties are provided,
-            // the content should be displayed in the flow of the current content, not overlapping it.
-            // The behavior is just if it would be statically positioned except it does not affect other elements
             AbstractRenderer positionedParent = this;
-            boolean noPositionInfo = AbstractRenderer.noAbsolutePositionInfo(renderer);
-            while (!positionedParent.isPositioned() && !noPositionInfo) {
+            while (!positionedParent.isPositioned() && !(verticalCoordinateMissing && horizontalCoordinateMissing)) {
                 IRenderer parent = positionedParent.parent;
                 if (parent instanceof AbstractRenderer) {
                     positionedParent = (AbstractRenderer) parent;
@@ -226,6 +234,21 @@ public abstract class AbstractRenderer implements IRenderer {
             }
         }
 
+        if (positioning != null && positioning == LayoutPosition.ABSOLUTE) {
+            // For position=absolute, if properties for certain coordinates are not provided
+            // (there is no strict coordinates where to place the element),
+            // the content should be displayed as if it's in the flow of the current content.
+            // The behavior is just as if it would be statically positioned except it does not affect other elements.
+            if (!(this instanceof FlexContainerRenderer || this instanceof GridContainerRenderer
+                    || this instanceof GridItemRenderer)) {
+                // Static positioning is different for Flex and Grid layout, that's why for now it's not calculated.
+                if (verticalCoordinateMissing || horizontalCoordinateMissing) {
+                    childRenderers.add(new AbsolutelyPositionedRenderer(
+                            renderer, verticalCoordinateMissing, horizontalCoordinateMissing));
+                }
+            }
+        }
+
         // Fetch positioned renderers from non-positioned child because they might be stuck there
         // because child's parent was null previously
         if (renderer instanceof AbstractRenderer && !((AbstractRenderer) renderer).isPositioned() &&
@@ -236,7 +259,9 @@ public abstract class AbstractRenderer implements IRenderer {
             int pos = 0;
             List<IRenderer> childPositionedRenderers = ((AbstractRenderer) renderer).positionedRenderers;
             while (pos < childPositionedRenderers.size()) {
-                if (AbstractRenderer.noAbsolutePositionInfo(childPositionedRenderers.get(pos))) {
+                if (AbstractRenderer.verticalCoordinateMissingForAbsolutePosition(childPositionedRenderers.get(pos))
+                        && AbstractRenderer.horizontalCoordinateMissingForAbsolutePosition(
+                                childPositionedRenderers.get(pos))) {
                     pos++;
                 } else {
                     positionedRenderers.add(childPositionedRenderers.get(pos));
@@ -260,6 +285,15 @@ public abstract class AbstractRenderer implements IRenderer {
     @Override
     public List<IRenderer> getChildRenderers() {
         return childRenderers;
+    }
+
+    /**
+     * Gets the fixed positioned child {@link IRenderer}s.
+     *
+     * @return a list of direct fixed positioned child {@link IRenderer renderers} of this instance
+     */
+    public Iterable<? extends IRenderer> getPositionenRenderers() {
+        return positionedRenderers;
     }
 
     /**
@@ -320,6 +354,23 @@ public abstract class AbstractRenderer implements IRenderer {
      * {@inheritDoc}
      */
     @Override
+    public <T1> T1 getOwnProperty(int property) {
+        return (T1) properties.get(property);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public <T1> T1 getProperty(int property, T1 defaultValue) {
+        T1 result = this.<T1>getProperty(property);
+        return result != null ? result : defaultValue;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
     public <T1> T1 getProperty(int key) {
         Object property;
         if ((property = properties.get(key)) != null || properties.containsKey(key)) {
@@ -336,23 +387,6 @@ public abstract class AbstractRenderer implements IRenderer {
             return (T1) property;
         }
         return modelElement != null ? modelElement.<T1>getDefaultProperty(key) : (T1) (Object) null;
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public <T1> T1 getOwnProperty(int property) {
-        return (T1) properties.get(property);
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public <T1> T1 getProperty(int property, T1 defaultValue) {
-        T1 result = this.<T1>getProperty(property);
-        return result != null ? result : defaultValue;
     }
 
     /**
@@ -511,6 +545,91 @@ public abstract class AbstractRenderer implements IRenderer {
     }
 
     /**
+     * Draws a background layer if it is defined by a key {@link Property#BACKGROUND}
+     * in either the layout element or this {@link IRenderer} itself.
+     *
+     * @param drawContext the context (canvas, document, etc.) of this drawing operation.
+     */
+    public void drawBackground(DrawContext drawContext) {
+        final Background background = this.<Background>getProperty(Property.BACKGROUND);
+        final List<BackgroundImage> backgroundImagesList = this.<List<BackgroundImage>>getProperty(Property.BACKGROUND_IMAGE);
+
+        if (background != null || backgroundImagesList != null) {
+            Rectangle bBox = getOccupiedAreaBBox();
+            boolean isTagged = drawContext.isTaggingEnabled();
+            if (isTagged) {
+                drawContext.getCanvas().openTag(new CanvasArtifact());
+            }
+            Rectangle backgroundArea = getBackgroundArea(applyMargins(bBox, false));
+            if (backgroundArea.getWidth() <= 0 || backgroundArea.getHeight() <= 0) {
+                LOGGER.info(() -> MessageFormatUtil.format(
+                        IoLogMessageConstant.RECTANGLE_HAS_NEGATIVE_OR_ZERO_SIZES, "background"));
+            } else {
+                boolean backgroundAreaIsClipped = false;
+                if (background != null) {
+                    // TODO DEVSIX-4525 determine how background-clip affects background-radius
+                    final Rectangle clippedBackgroundArea = applyBackgroundBoxProperty(backgroundArea.clone(),
+                            background.getBackgroundClip());
+                    backgroundAreaIsClipped = clipBackgroundArea(drawContext, clippedBackgroundArea);
+                    drawColorBackground(background, drawContext, clippedBackgroundArea);
+                }
+                if (backgroundImagesList != null) {
+                    backgroundAreaIsClipped = drawBackgroundImagesList(backgroundImagesList, backgroundAreaIsClipped,
+                            drawContext, backgroundArea);
+                }
+                if (backgroundAreaIsClipped) {
+                    drawContext.getCanvas().restoreState();
+                }
+            }
+            if (isTagged) {
+                drawContext.getCanvas().closeTag();
+            }
+        }
+    }
+
+    /**
+     * Create a {@link PdfFormXObject} with the given area and containing a gradient inside.
+     *
+     * @param gradientBuilder the gradient builder
+     * @param xObjectArea the result object area
+     * @param document the pdf document
+     *
+     * @return the xObject with a specified area and a gradient
+     */
+    public static PdfFormXObject createXObject(IGradientBuilder gradientBuilder,
+                                               Rectangle xObjectArea, PdfDocument document) {
+        Rectangle formBBox = new Rectangle(0, 0, xObjectArea.getWidth(), xObjectArea.getHeight());
+        PdfFormXObject xObject = new PdfFormXObject(formBBox);
+        if (gradientBuilder != null) {
+            Color gradientColor = gradientBuilder.buildColor(formBBox, null, document);
+            if (gradientColor != null) {
+                new PdfCanvas(xObject, document)
+                        .setColor(gradientColor, true)
+                        .rectangle(formBBox)
+                        .fill();
+            }
+        }
+        return xObject;
+    }
+
+    /**
+     * Create a {@link PdfFormXObject} with the given area and containing a linear gradient inside.
+     *
+     * @param linearGradientBuilder the linear gradient builder
+     * @param xObjectArea the result object area
+     * @param document the pdf document
+     *
+     * @return the xObject with a specified area and a linear gradient
+     *
+     * @deprecated use {@link AbstractRenderer#createXObject(IGradientBuilder, Rectangle, PdfDocument)} instead
+     */
+    @Deprecated
+    public static PdfFormXObject createXObject(AbstractLinearGradientBuilder linearGradientBuilder,
+            Rectangle xObjectArea, PdfDocument document) {
+        return createXObject((IGradientBuilder) linearGradientBuilder, xObjectArea, document);
+    }
+
+    /**
      * Apply {@code Property.OPACITY} property if specified by setting corresponding values in graphic state dictionary
      * opacity will be applied to all elements drawn after calling this method and before
      * calling {@link AbstractRenderer#endElementOpacityApplying(DrawContext)}.
@@ -542,61 +661,26 @@ public abstract class AbstractRenderer implements IRenderer {
         }
     }
 
-    /**
-     * Draws a background layer if it is defined by a key {@link Property#BACKGROUND}
-     * in either the layout element or this {@link IRenderer} itself.
-     *
-     * @param drawContext the context (canvas, document, etc.) of this drawing operation.
-     */
-    public void drawBackground(DrawContext drawContext) {
-        final Background background = this.<Background>getProperty(Property.BACKGROUND);
-        final List<BackgroundImage> backgroundImagesList = this.<List<BackgroundImage>>getProperty(Property.BACKGROUND_IMAGE);
-
-        if (background != null || backgroundImagesList != null) {
-            Rectangle bBox = getOccupiedAreaBBox();
-            boolean isTagged = drawContext.isTaggingEnabled();
-            if (isTagged) {
-                drawContext.getCanvas().openTag(new CanvasArtifact());
-            }
-            Rectangle backgroundArea = getBackgroundArea(applyMargins(bBox, false));
-            if (backgroundArea.getWidth() <= 0 || backgroundArea.getHeight() <= 0) {
-                Logger logger = LoggerFactory.getLogger(AbstractRenderer.class);
-                logger.info(MessageFormatUtil.format(
-                        IoLogMessageConstant.RECTANGLE_HAS_NEGATIVE_OR_ZERO_SIZES, "background"));
-            } else {
-                boolean backgroundAreaIsClipped = false;
-                if (background != null) {
-                    // TODO DEVSIX-4525 determine how background-clip affects background-radius
-                    final Rectangle clippedBackgroundArea = applyBackgroundBoxProperty(backgroundArea.clone(),
-                            background.getBackgroundClip());
-                    backgroundAreaIsClipped = clipBackgroundArea(drawContext, clippedBackgroundArea);
-                    drawColorBackground(background, drawContext, clippedBackgroundArea);
-                }
-                if (backgroundImagesList != null) {
-                    backgroundAreaIsClipped = drawBackgroundImagesList(backgroundImagesList, backgroundAreaIsClipped,
-                            drawContext, backgroundArea);
-                }
-                if (backgroundAreaIsClipped) {
-                    drawContext.getCanvas().restoreState();
-                }
-            }
-            if (isTagged) {
-                drawContext.getCanvas().closeTag();
-            }
-        }
-    }
-
     private void drawColorBackground(Background background, DrawContext drawContext, Rectangle colorBackgroundArea) {
+        double backgroundRectangleWidth = (double) colorBackgroundArea.getWidth() +
+                background.getExtraLeft() + background.getExtraRight();
+        double backgroundRectangleHeight = (double) colorBackgroundArea.getHeight() +
+                background.getExtraTop() + background.getExtraBottom();
+        if (backgroundRectangleWidth < EPS || backgroundRectangleHeight < EPS) {
+            LOGGER.info(() -> MessageFormatUtil.format(
+                    IoLogMessageConstant.RECTANGLE_HAS_NEGATIVE_OR_ZERO_SIZES, "background"));
+            return;
+        }
         final TransparentColor backgroundColor = new TransparentColor(background.getColor(),
                 background.getOpacity());
         drawContext.getCanvas().saveState().setFillColor(backgroundColor.getColor());
         backgroundColor.applyFillTransparency(drawContext.getCanvas());
-        drawContext.getCanvas().rectangle((double) colorBackgroundArea.getX() - background.getExtraLeft(),
+        drawContext.getCanvas().rectangle(
+                (double) colorBackgroundArea.getX() - background.getExtraLeft(),
                 (double) colorBackgroundArea.getY() - background.getExtraBottom(),
-                (double) colorBackgroundArea.getWidth() +
-                        background.getExtraLeft() + background.getExtraRight(),
-                (double) colorBackgroundArea.getHeight() +
-                        background.getExtraTop() + background.getExtraBottom()).fill().restoreState();
+                backgroundRectangleWidth,
+                backgroundRectangleHeight
+        ).fill().restoreState();
     }
 
     private Rectangle applyBackgroundBoxProperty(Rectangle rectangle, BackgroundBox clip) {
@@ -640,11 +724,11 @@ public abstract class AbstractRenderer implements IRenderer {
         final UnitValue xPosition = UnitValue.createPointValue(0);
         final UnitValue yPosition = UnitValue.createPointValue(0);
         if (backgroundXObject == null) {
-            final AbstractLinearGradientBuilder gradientBuilder = backgroundImage.getLinearGradientBuilder();
+            final IGradientBuilder gradientBuilder = backgroundImage.getGradientBuilder();
             if (gradientBuilder == null) {
                 return;
             }
-            // fullWidth and fullHeight is 0 because percentage shifts are ignored for linear-gradients
+            // fullWidth and fullHeight is 0 because percentage shifts are ignored for gradient backgrounds
             backgroundImage.getBackgroundPosition().calculatePositionValues(0, 0, xPosition, yPosition);
             backgroundXObject = createXObject(gradientBuilder, originBackgroundArea, drawContext.getDocument());
         } else {
@@ -656,8 +740,7 @@ public abstract class AbstractRenderer implements IRenderer {
                 originBackgroundArea.getTop() - imageWidthAndHeight[1] - yPosition.getValue(),
                 imageWidthAndHeight[0], imageWidthAndHeight[1]);
         if (imageRectangle.getWidth() <= 0 || imageRectangle.getHeight() <= 0) {
-            Logger logger = LoggerFactory.getLogger(AbstractRenderer.class);
-            logger.info(MessageFormatUtil.format(
+            LOGGER.info(() -> MessageFormatUtil.format(
                     IoLogMessageConstant.RECTANGLE_HAS_NEGATIVE_OR_ZERO_SIZES,
                     "background-image"));
         } else {
@@ -731,31 +814,6 @@ public abstract class AbstractRenderer implements IRenderer {
             ++counterX;
         }
         while (!backgroundImage.getRepeat().isNoRepeatOnXAxis() && (isCurrentOverlaps || isNextOverlaps));
-    }
-
-    /**
-     * Create a {@link PdfFormXObject} with the given area and containing a linear gradient inside.
-     *
-     * @param linearGradientBuilder the linear gradient builder
-     * @param xObjectArea the result object area
-     * @param document the pdf document
-     *
-     * @return the xObject with a specified area and a linear gradient
-     */
-    public static PdfFormXObject createXObject(AbstractLinearGradientBuilder linearGradientBuilder,
-                                               Rectangle xObjectArea, PdfDocument document) {
-        Rectangle formBBox = new Rectangle(0, 0, xObjectArea.getWidth(), xObjectArea.getHeight());
-        PdfFormXObject xObject = new PdfFormXObject(formBBox);
-        if (linearGradientBuilder != null) {
-            Color gradientColor = linearGradientBuilder.buildColor(formBBox, null, document);
-            if (gradientColor != null) {
-                new PdfCanvas(xObject, document)
-                        .setColor(gradientColor, true)
-                        .rectangle(formBBox)
-                        .fill();
-            }
-        }
-        return xObject;
     }
 
     /**
@@ -1102,8 +1160,8 @@ public abstract class AbstractRenderer implements IRenderer {
 
             Rectangle bBox = getBorderAreaBBox();
             if (bBox.getWidth() < 0 || bBox.getHeight() < 0) {
-                Logger logger = LoggerFactory.getLogger(AbstractRenderer.class);
-                logger.error(MessageFormatUtil.format(IoLogMessageConstant.RECTANGLE_HAS_NEGATIVE_SIZE, "border"));
+                LOGGER.error(() -> MessageFormatUtil.format(
+                        IoLogMessageConstant.RECTANGLE_HAS_NEGATIVE_SIZE, "border"));
                 return;
             }
             float x1 = bBox.getX();
@@ -1201,9 +1259,8 @@ public abstract class AbstractRenderer implements IRenderer {
      */
     @Override
     public void move(float dxRight, float dyUp) {
-        Logger logger = LoggerFactory.getLogger(AbstractRenderer.class);
         if (occupiedArea == null) {
-            logger.error(MessageFormatUtil.format(IoLogMessageConstant.OCCUPIED_AREA_HAS_NOT_BEEN_INITIALIZED,
+            LOGGER.error(() -> MessageFormatUtil.format(IoLogMessageConstant.OCCUPIED_AREA_HAS_NOT_BEEN_INITIALIZED,
                     "Moving won't be performed."));
             return;
         }
@@ -1756,8 +1813,8 @@ public abstract class AbstractRenderer implements IRenderer {
     protected Float retrieveUnitValue(float baseValue, int property, boolean pointOnly) {
         UnitValue value = this.<UnitValue>getProperty(property);
         if (pointOnly && value.getUnitType() == UnitValue.POINT) {
-            Logger logger = LoggerFactory.getLogger(AbstractRenderer.class);
-            logger.error(MessageFormatUtil.format(IoLogMessageConstant.PROPERTY_IN_PERCENTS_NOT_SUPPORTED, property));
+            LOGGER.error(() -> MessageFormatUtil.format(
+                    IoLogMessageConstant.PROPERTY_IN_PERCENTS_NOT_SUPPORTED, property));
         }
         if (value != null) {
             if (value.getUnitType() == UnitValue.PERCENT) {
@@ -1827,23 +1884,19 @@ public abstract class AbstractRenderer implements IRenderer {
      */
     protected Rectangle applyMargins(Rectangle rect, UnitValue[] margins, boolean reverse) {
         if (!margins[TOP_SIDE].isPointValue()) {
-            Logger logger = LoggerFactory.getLogger(AbstractRenderer.class);
-            logger.error(MessageFormatUtil.format(IoLogMessageConstant.PROPERTY_IN_PERCENTS_NOT_SUPPORTED,
+            LOGGER.error(() -> MessageFormatUtil.format(IoLogMessageConstant.PROPERTY_IN_PERCENTS_NOT_SUPPORTED,
                     Property.MARGIN_TOP));
         }
         if (!margins[RIGHT_SIDE].isPointValue()) {
-            Logger logger = LoggerFactory.getLogger(AbstractRenderer.class);
-            logger.error(MessageFormatUtil.format(IoLogMessageConstant.PROPERTY_IN_PERCENTS_NOT_SUPPORTED,
+            LOGGER.error(() -> MessageFormatUtil.format(IoLogMessageConstant.PROPERTY_IN_PERCENTS_NOT_SUPPORTED,
                     Property.MARGIN_RIGHT));
         }
         if (!margins[BOTTOM_SIDE].isPointValue()) {
-            Logger logger = LoggerFactory.getLogger(AbstractRenderer.class);
-            logger.error(MessageFormatUtil.format(IoLogMessageConstant.PROPERTY_IN_PERCENTS_NOT_SUPPORTED,
+            LOGGER.error(() -> MessageFormatUtil.format(IoLogMessageConstant.PROPERTY_IN_PERCENTS_NOT_SUPPORTED,
                     Property.MARGIN_BOTTOM));
         }
         if (!margins[LEFT_SIDE].isPointValue()) {
-            Logger logger = LoggerFactory.getLogger(AbstractRenderer.class);
-            logger.error(MessageFormatUtil.format(IoLogMessageConstant.PROPERTY_IN_PERCENTS_NOT_SUPPORTED,
+            LOGGER.error(() -> MessageFormatUtil.format(IoLogMessageConstant.PROPERTY_IN_PERCENTS_NOT_SUPPORTED,
                     Property.MARGIN_LEFT));
         }
         return rect.applyMargins(
@@ -1885,23 +1938,19 @@ public abstract class AbstractRenderer implements IRenderer {
      */
     protected Rectangle applyPaddings(Rectangle rect, UnitValue[] paddings, boolean reverse) {
         if (paddings[0] != null && !paddings[0].isPointValue()) {
-            Logger logger = LoggerFactory.getLogger(AbstractRenderer.class);
-            logger.error(MessageFormatUtil.format(IoLogMessageConstant.PROPERTY_IN_PERCENTS_NOT_SUPPORTED,
+            LOGGER.error(() -> MessageFormatUtil.format(IoLogMessageConstant.PROPERTY_IN_PERCENTS_NOT_SUPPORTED,
                     Property.PADDING_TOP));
         }
         if (paddings[1] != null && !paddings[1].isPointValue()) {
-            Logger logger = LoggerFactory.getLogger(AbstractRenderer.class);
-            logger.error(MessageFormatUtil.format(IoLogMessageConstant.PROPERTY_IN_PERCENTS_NOT_SUPPORTED,
+            LOGGER.error(() -> MessageFormatUtil.format(IoLogMessageConstant.PROPERTY_IN_PERCENTS_NOT_SUPPORTED,
                     Property.PADDING_RIGHT));
         }
         if (paddings[2] != null && !paddings[2].isPointValue()) {
-            Logger logger = LoggerFactory.getLogger(AbstractRenderer.class);
-            logger.error(MessageFormatUtil.format(IoLogMessageConstant.PROPERTY_IN_PERCENTS_NOT_SUPPORTED,
+            LOGGER.error(() -> MessageFormatUtil.format(IoLogMessageConstant.PROPERTY_IN_PERCENTS_NOT_SUPPORTED,
                     Property.PADDING_BOTTOM));
         }
         if (paddings[3] != null && !paddings[3].isPointValue()) {
-            Logger logger = LoggerFactory.getLogger(AbstractRenderer.class);
-            logger.error(MessageFormatUtil.format(IoLogMessageConstant.PROPERTY_IN_PERCENTS_NOT_SUPPORTED,
+            LOGGER.error(() -> MessageFormatUtil.format(IoLogMessageConstant.PROPERTY_IN_PERCENTS_NOT_SUPPORTED,
                     Property.PADDING_LEFT));
         }
         return rect.applyMargins(paddings[0] != null ? paddings[0].getValue() : 0,
@@ -1909,6 +1958,57 @@ public abstract class AbstractRenderer implements IRenderer {
                 paddings[2] != null ? paddings[2].getValue() : 0,
                 paddings[3] != null ? paddings[3].getValue() : 0,
                 reverse);
+    }
+
+    protected void applyAbsolutePosition(Rectangle parentRect) {
+        Float top = this.getPropertyAsFloat(Property.TOP);
+        Float bottom = this.getPropertyAsFloat(Property.BOTTOM);
+        Float left = this.getPropertyAsFloat(Property.LEFT);
+        Float right = this.getPropertyAsFloat(Property.RIGHT);
+
+        if (right == null && left == null &&
+                BaseDirection.RIGHT_TO_LEFT == this.<BaseDirection>getProperty(Property.BASE_DIRECTION)) {
+            right = 0f;
+        }
+
+        try {
+            if (right != null) {
+                move(parentRect.getRight() - (float) right - occupiedArea.getBBox().getRight(), 0);
+            }
+
+            if (left != null) {
+                move(parentRect.getLeft() + (float) left - occupiedArea.getBBox().getLeft(), 0);
+            }
+
+            if (top != null) {
+                move(0, parentRect.getTop() - (float) top - occupiedArea.getBBox().getTop());
+            }
+
+            if (bottom != null) {
+                move(0, parentRect.getBottom() + (float) bottom - occupiedArea.getBBox().getBottom());
+            }
+
+            if (left == null && right == null) {
+                Float leftCalculated = this.getPropertyAsFloat(Property.LEFT_CALCULATED);
+                if (leftCalculated == null) {
+                    move(parentRect.getLeft() - occupiedArea.getBBox().getLeft(), 0);
+                } else {
+                    move((float) leftCalculated - occupiedArea.getBBox().getX(), 0);
+                }
+            }
+
+            if (top == null && bottom == null) {
+                Float topCalculated = this.getPropertyAsFloat(Property.TOP_CALCULATED);
+                if (topCalculated == null) {
+                    move(0, parentRect.getTop() - occupiedArea.getBBox().getTop());
+                } else {
+                    move(0, (float) topCalculated - occupiedArea.getBBox().getHeight() - occupiedArea.getBBox().getY());
+                }
+            }
+        } catch (Exception exc) {
+            LOGGER.error(() -> MessageFormatUtil.format(IoLogMessageConstant.OCCUPIED_AREA_HAS_NOT_BEEN_INITIALIZED,
+                    "Absolute positioning might be applied incorrectly."));
+        }
     }
 
     /**
@@ -1929,44 +2029,11 @@ public abstract class AbstractRenderer implements IRenderer {
         return rect.applyMargins(topWidth, rightWidth, bottomWidth, leftWidth, reverse);
     }
 
-    protected void applyAbsolutePosition(Rectangle parentRect) {
-        Float top = this.getPropertyAsFloat(Property.TOP);
-        Float bottom = this.getPropertyAsFloat(Property.BOTTOM);
-        Float left = this.getPropertyAsFloat(Property.LEFT);
-        Float right = this.getPropertyAsFloat(Property.RIGHT);
-
-        if (left == null && right == null && BaseDirection.RIGHT_TO_LEFT.equals(this.<BaseDirection>getProperty(Property.BASE_DIRECTION))) {
-            right = 0f;
-        }
-
-        if (top == null && bottom == null) {
-            top = 0f;
-        }
-
-        try {
-            if (right != null) {
-                move(parentRect.getRight() - (float) right - occupiedArea.getBBox().getRight(), 0);
-            }
-
-            if (left != null) {
-                move(parentRect.getLeft() + (float) left - occupiedArea.getBBox().getLeft(), 0);
-            }
-
-            if (top != null) {
-                move(0, parentRect.getTop() - (float) top - occupiedArea.getBBox().getTop());
-            }
-
-            if (bottom != null) {
-                move(0, parentRect.getBottom() + (float) bottom - occupiedArea.getBBox().getBottom());
-            }
-        } catch (Exception exc) {
-            Logger logger = LoggerFactory.getLogger(AbstractRenderer.class);
-            logger.error(MessageFormatUtil.format(IoLogMessageConstant.OCCUPIED_AREA_HAS_NOT_BEEN_INITIALIZED,
-                    "Absolute positioning might be applied incorrectly."));
-        }
-    }
-
     protected void applyRelativePositioningTranslation(boolean reverse) {
+        if (reverse != relativePositioningTranslationApplied) {
+            return;
+        }
+
         float top = (float) this.getPropertyAsFloat(Property.TOP, 0f);
         float bottom = (float) this.getPropertyAsFloat(Property.BOTTOM, 0f);
         float left = (float) this.getPropertyAsFloat(Property.LEFT, 0f);
@@ -1977,8 +2044,11 @@ public abstract class AbstractRenderer implements IRenderer {
         float dxRight = left != 0 ? left * reverseMultiplier : -right * reverseMultiplier;
         float dyUp = top != 0 ? -top * reverseMultiplier : bottom * reverseMultiplier;
 
-        if (dxRight != 0 || dyUp != 0)
+        if (dxRight != 0 || dyUp != 0) {
             move(dxRight, dyUp);
+        }
+
+        relativePositioningTranslationApplied = !reverse;
     }
 
     protected void applyDestination(PdfDocument document) {
@@ -2004,13 +2074,11 @@ public abstract class AbstractRenderer implements IRenderer {
             if (destinationName != null) {
                 int pageNumber = occupiedArea.getPageNumber();
                 if (pageNumber < 1 || pageNumber > document.getNumberOfPages()) {
-                    Logger logger = LoggerFactory.getLogger(AbstractRenderer.class);
                     String logMessageArg =
                             "Property.DESTINATION, which specifies this element location as destination, " +
                                     "see ElementPropertyContainer.setDestination.";
-                    logger.warn(MessageFormatUtil.format(
-                            IoLogMessageConstant
-                                    .UNABLE_TO_APPLY_PAGE_DEPENDENT_PROP_UNKNOWN_PAGE_ON_WHICH_ELEMENT_IS_DRAWN,
+                    LOGGER.warn(() -> MessageFormatUtil.format(
+                            IoLogMessageConstant.UNABLE_TO_APPLY_PAGE_DEPENDENT_PROP_UNKNOWN_PAGE_ON_WHICH_ELEMENT_IS_DRAWN,
                             logMessageArg));
                     return;
                 }
@@ -2056,7 +2124,6 @@ public abstract class AbstractRenderer implements IRenderer {
     }
 
     protected void applyLinkAnnotation(PdfDocument document) {
-        Logger logger = LoggerFactory.getLogger(AbstractRenderer.class);
         PdfLinkAnnotation linkAnnotation = this.<PdfLinkAnnotation>getProperty(Property.LINK_ANNOTATION);
         if (linkAnnotation == null) {
             return;
@@ -2065,7 +2132,7 @@ public abstract class AbstractRenderer implements IRenderer {
         int pageNumber = occupiedArea.getPageNumber();
         if (pageNumber < 1 || pageNumber > document.getNumberOfPages()) {
             String logMessageArg = "Property.LINK_ANNOTATION, which specifies a link associated with this element content area, see com.itextpdf.layout.element.Link.";
-            logger.warn(MessageFormatUtil.format(
+            LOGGER.warn(() -> MessageFormatUtil.format(
                     IoLogMessageConstant.UNABLE_TO_APPLY_PAGE_DEPENDENT_PROP_UNKNOWN_PAGE_ON_WHICH_ELEMENT_IS_DRAWN,
                     logMessageArg));
             return;
@@ -2083,7 +2150,7 @@ public abstract class AbstractRenderer implements IRenderer {
         // TODO DEVSIX-1655 This check is necessary because, in some cases, our renderer's hierarchy may contain
         //  a renderer from the different page that was already flushed
         if (page.isFlushed()) {
-            logger.error(MessageFormatUtil.format(
+            LOGGER.error(() -> MessageFormatUtil.format(
                     IoLogMessageConstant.PAGE_WAS_FLUSHED_ACTION_WILL_NOT_BE_PERFORMED, "link annotation applying"));
         } else {
             page.addAnnotation(linkAnnotation);
@@ -2132,8 +2199,7 @@ public abstract class AbstractRenderer implements IRenderer {
     void updateHeightsOnSplit(float usedHeight, boolean wasHeightClipped, AbstractRenderer splitRenderer, AbstractRenderer overflowRenderer, boolean enlargeOccupiedAreaOnHeightWasClipped) {
         if (wasHeightClipped) {
             // if height was clipped, max height exists and can be resolved
-            Logger logger = LoggerFactory.getLogger(AbstractRenderer.class);
-            logger.warn(IoLogMessageConstant.CLIP_ELEMENT);
+            LOGGER.warn(() -> IoLogMessageConstant.CLIP_ELEMENT);
 
             if (enlargeOccupiedAreaOnHeightWasClipped) {
                 Float maxHeight = retrieveMaxHeight();
@@ -2311,8 +2377,8 @@ public abstract class AbstractRenderer implements IRenderer {
                             break;
                     }
                 } catch (NullPointerException e) {
-                    Logger logger = LoggerFactory.getLogger(AbstractRenderer.class);
-                    logger.error(MessageFormatUtil.format(IoLogMessageConstant.OCCUPIED_AREA_HAS_NOT_BEEN_INITIALIZED,
+                    LOGGER.error(() -> MessageFormatUtil.format(
+                            IoLogMessageConstant.OCCUPIED_AREA_HAS_NOT_BEEN_INITIALIZED,
                             "Some of the children might not end up aligned horizontally."));
                 }
             }
@@ -2520,8 +2586,12 @@ public abstract class AbstractRenderer implements IRenderer {
         return dummy.getWidth();
     }
 
-    static boolean noAbsolutePositionInfo(IRenderer renderer) {
-        return !renderer.hasProperty(Property.TOP) && !renderer.hasProperty(Property.BOTTOM) && !renderer.hasProperty(Property.LEFT) && !renderer.hasProperty(Property.RIGHT);
+    static boolean verticalCoordinateMissingForAbsolutePosition(IRenderer renderer) {
+        return !renderer.hasProperty(Property.TOP) && !renderer.hasProperty(Property.BOTTOM);
+    }
+
+    static boolean horizontalCoordinateMissingForAbsolutePosition(IRenderer renderer) {
+        return !renderer.hasProperty(Property.LEFT) && !renderer.hasProperty(Property.RIGHT);
     }
 
     static Float getPropertyAsFloat(IRenderer renderer, int property) {
@@ -2846,12 +2916,33 @@ public abstract class AbstractRenderer implements IRenderer {
 
     boolean logWarningIfGetNextRendererNotOverridden(Class<?> baseClass, Class<?> rendererClass) {
         if (baseClass != rendererClass) {
-            final Logger logger = LoggerFactory.getLogger(baseClass);
-            logger.warn(MessageFormatUtil.format(IoLogMessageConstant.GET_NEXT_RENDERER_SHOULD_BE_OVERRIDDEN));
+            final LazyLogger logger = new LazyLogger(baseClass);
+            logger.warn(() -> MessageFormatUtil.format(IoLogMessageConstant.GET_NEXT_RENDERER_SHOULD_BE_OVERRIDDEN));
             return false;
         } else {
             return true;
         }
+    }
+
+    boolean isRendererInSplitRendererTree(IRenderer positionedRenderer, IRenderer splitRenderer) {
+        for (IRenderer childRenderer : splitRenderer.getChildRenderers()) {
+            if (childRenderer instanceof AbsolutelyPositionedRenderer &&
+                    ((AbsolutelyPositionedRenderer) childRenderer).getWrappedRenderer() == positionedRenderer) {
+                return true;
+            }
+            if (isRendererInSplitRendererTree(positionedRenderer, childRenderer)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    boolean isVerticalWriting() {
+        if (this.<WritingMode>getProperty(Property.WRITING_MODE) == WritingMode.VERTICAL_LR) {
+            return this.<VerticalTextOrientation>getProperty(Property.TEXT_ORIENTATION)
+                    == VerticalTextOrientation.UPRIGHT;
+        }
+        return false;
     }
 
     private void removeThisFromParent(IRenderer toRemove) {

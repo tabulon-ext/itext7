@@ -18,6 +18,7 @@
             <fileset reason="Underlying implementation classes not autoportable (e.g. java.text.MessageFormat, java.util.Locale">
                 <file path="com/itextpdf/commons/utils/MessageFormatUtil.java"/>
             </fileset>
+
             <fileset reason="Underlying implementation classes not autoportable (e.g. java.nio.charset.Charset,
         java.nio.charset.CharsetEncoder, java.nio.ByteBuffer">
                 <file path="com/itextpdf/commons/utils/EncodingUtil.java"/>
@@ -80,6 +81,9 @@
                 <file path="com/itextpdf/commons/json/JsonValueDeserializer.java"/>
                 <file path="com/itextpdf/commons/json/JsonValueSerializer.java"/>
             </fileset>
+            <fileset reason="Implementing library classes/interfaces which are different on Java and .NET">
+                <file path="com/itextpdf/commons/logs/TestLogger.java"/>
+            </fileset>
             <!-- io -->
             <fileset reason="LimitedInputStream extends InputStream, which has different interfaces in Java and .NET">
                 <file path="com/itextpdf/io/resolver/resource/LimitedInputStream.java" />
@@ -141,7 +145,6 @@
             <file path="com/itextpdf/io/util/ResourceUtil.java"/>
             <file path="com/itextpdf/io/util/UrlUtilTest.java"/>
             <file path="com/itextpdf/io/util/GenericArray.java"/>
-            <file path="com/itextpdf/io/util/ExceptionUtil.java"/>
             <file path="com/itextpdf/io/exceptions/ExceptionUtil.java"/>
             <file path="com/itextpdf/io/util/TextUtil.java"/>
             <file path="com/itextpdf/io/util/FilterUtil.java"/>
@@ -168,12 +171,16 @@
             <fileset reason="CloseableByteArrayOutputStream cannot be trivially ported into MemoryStream">
                 <file path="com/itextpdf/io/util/CloseableByteArrayOutputStream.java"/>
             </fileset>
+            <fileset reason="Java and .net have different WebP log messages">
+                <file path="com/itextpdf/io/image/WebPLogMessageConstant.java"/>
+            </fileset>
             <!-- barcodes -->
             <file path="com/itextpdf/barcodes/BarcodeMultiThreadingTest.java"/>
 
             <!-- bouncy-castle -->
             <fileset reason="Logic of some methods in BC and BCFips differs at Java and .NET.">
                 <file path="com/itextpdf/bouncycastleconnector/BouncyCastleDefaultFactory.java"/>
+                <file path="com/itextpdf/bouncycastleconnector/logs/BouncyCastleLogMessageConstant.java"/>
                 <file path="com/itextpdf/bouncycastle/BouncyCastleFactory.java"/>
                 <file path="com/itextpdf/bouncycastle/asn1/ASN1GeneralizedTimeBC.java"/>
                 <file path="com/itextpdf/bouncycastle/asn1/ASN1IntegerBC.java"/>
@@ -181,11 +188,8 @@
                 <file path="com/itextpdf/bouncycastle/asn1/ASN1TaggedObjectBC.java"/>
                 <file path="com/itextpdf/bouncycastle/asn1/ocsp/BasicOCSPResponseBC.java"/>
                 <file path="com/itextpdf/bouncycastle/asn1/ocsp/OCSPResponseBC.java"/>
-                <file path="com/itextpdf/bouncycastle/asn1/ocsp/ResponderIdBC.java"/>
                 <file path="com/itextpdf/bouncycastle/asn1/pcks/PrivateKeyInfoBC.java"/>
-                <file path="com/itextpdf/bouncycastle/asn1/pkcs/PrivateKeyInfoBC.java"/>
                 <file path="com/itextpdf/bouncycastle/asn1/pcks/RSASSAPSSParamsBC.java"/>
-                <file path="com/itextpdf/bouncycastle/asn1/pkcs/RSASSAPSSParamsBC.java"/>
                 <file path="com/itextpdf/bouncycastle/asn1/util/ASN1DumpBC.java"/>
                 <file path="com/itextpdf/bouncycastle/asn1/x500/X500NameBC.java"/>
                 <file path="com/itextpdf/bouncycastle/asn1/x509/ExtensionBC.java"/>
@@ -242,6 +246,8 @@
                 <file path="com/itextpdf/bouncycastle/tsp/TimeStampTokenGeneratorBC.java"/>
                 <file path="com/itextpdf/bouncycastle/tsp/TimeStampTokenBC.java"/>
                 <file path="com/itextpdf/bouncycastle/asn1/x509/SubjectPublicKeyInfoBC.java"/>
+                <file path="com/itextpdf/bouncycastle/asn1/x509/NameConstraintsBC.java" />
+                <file path="com/itextpdf/bouncycastle/pkix/PKIXNameConstraintValidatorBC.java" />
                 <file path="com/itextpdf/bouncycastlefips/BouncyCastleFipsFactory.java"/>
                 <file path="com/itextpdf/bouncycastlefips/BouncyCastleFipsTestConstantsFactory.java"/>
                 <file path="com/itextpdf/bouncycastlefips/asn1/ASN1IntegerBCFips.java"/>
@@ -250,9 +256,7 @@
                 <file path="com/itextpdf/bouncycastlefips/asn1/ASN1OutputStreamBCFips.java"/>
                 <file path="com/itextpdf/bouncycastlefips/asn1/ocsp/BasicOCSPResponseBCFips.java"/>
                 <file path="com/itextpdf/bouncycastlefips/asn1/ocsp/OCSPResponseBCFips.java"/>
-                <file path="com/itextpdf/bouncycastlefips/asn1/ocsp/ResponderIdBCFips.java"/>
                 <file path="com/itextpdf/bouncycastlefips/asn1/pcks/PrivateKeyInfoBCFips.java"/>
-                <file path="com/itextpdf/bouncycastlefips/asn1/pkcs/PrivateKeyInfoBCFips.java"/>
                 <file path="com/itextpdf/bouncycastlefips/asn1/x500/X500NameBCFips.java"/>
                 <file path="com/itextpdf/bouncycastlefips/asn1/x509/ExtensionBCFips.java"/>
                 <file path="com/itextpdf/bouncycastlefips/asn1/x509/ExtensionsBCFips.java"/>
@@ -307,7 +311,6 @@
                 <file path="com/itextpdf/bouncycastlefips/pkcs/PKCS8EncryptedPrivateKeyInfoBCFips.java"/>
                 <file path="com/itextpdf/bouncycastlefips/pkcs/PKCSExceptionBCFips.java"/>
                 <file path="com/itextpdf/bouncycastlefips/asn1/pcks/RSASSAPSSParamsBCFips.java"/>
-                <file path="com/itextpdf/bouncycastlefips/asn1/pkcs/RSASSAPSSParamsBCFips.java"/>
                 <file path="com/itextpdf/bouncycastlefips/tsp/TimeStampResponseGeneratorBCFips.java"/>
                 <file path="com/itextpdf/bouncycastlefips/tsp/TimeStampRequestGeneratorBCFips.java"/>
                 <file path="com/itextpdf/bouncycastlefips/tsp/TimeStampResponseBCFips.java"/>
@@ -318,6 +321,8 @@
                 <file path="com/itextpdf/bouncycastlefips/tsp/TSPExceptionBCFips.java"/>
                 <file path="com/itextpdf/bouncycastlefips/crypto/modes/GCMBlockCipherBCFips.java"/>
                 <file path="com/itextpdf/bouncycastlefips/asn1/x509/SubjectPublicKeyInfoBCFips.java"/>
+                <file path="com/itextpdf/bouncycastlefips/asn1/x509/NameConstraintsBCFips.java" />
+                <file path="com/itextpdf/bouncycastlefips/pkix/PKIXNameConstraintValidatorBCFips.java" />
                 <file path="com/itextpdf/commons/bouncycastle/IBouncyCastleFactory.java"/>
                 <file path="com/itextpdf/commons/bouncycastle/asn1/IASN1InputStream.java"/>
                 <file path="com/itextpdf/commons/bouncycastle/asn1/IASN1Integer.java"/>
@@ -376,6 +381,10 @@
             <fileset reason="These classes are used only in Java.">
                 <file path="com/itextpdf/commons/bouncycastle/crypto/fips/AbstractFipsUnapprovedOperationError.java"/>
                 <file path="com/itextpdf/bouncycastlefips/crypto/fips/FipsUnapprovedOperationErrorBCFips.java"/>
+            </fileset>
+            <!-- TODO DEVSIX-10172 Remove this when Bouncy Castle is updated on dotnet-->
+            <fileset reason="Exception message is different due to Bouncy Castle lower version on dotnet">
+                <file path="com/itextpdf/bouncycastle/BouncyCastleTestConstantsFactory.java"/>
             </fileset>
             <!-- kernel -->
             <file path="com/itextpdf/kernel/pdf/CountOutputStream.java"/>
@@ -524,7 +533,6 @@
                 <file path="com/itextpdf/signatures/DigestAlgorithmsManualTest.java"/>
             </fileset>
             <fileset reason="SignatureMechanisms.getAlgorithm works differently for passed oid = null">
-                <file path="com/itextpdf/signatures/SignatureMechanismsManualTest.java"/>
             </fileset>
             <fileset reason="Some of the algorithms are not supported on .NET and the result is thus different. The tests with the identical result are in PdfPKCS7Test.">
                 <file path="com/itextpdf/signatures/PdfPKCS7ManuallyPortedTest.java"/>
@@ -547,11 +555,13 @@
                 <file path="com/itextpdf/signatures/testutils/PemFileHelper.java"/>
                 <file path="com/itextpdf/signatures/CertificateUtil.java"/>
             </fileset>
-            <fileset reason="EnumSet generics mapping problems">
+            <fileset reason="Enum generics mapping problems">
                 <file path="com/itextpdf/signatures/validation/context/ValidatorContexts.java" />
                 <file path="com/itextpdf/signatures/validation/context/TimeBasedContexts.java" />
                 <file path="com/itextpdf/signatures/validation/context/CertificateSources.java" />
                 <file path="com/itextpdf/signatures/validation/SignatureValidationProperties.java" />
+                <file path="com/itextpdf/layout/renderer/typography/ScriptInfoData.java" />
+
             </fileset>
             <fileset reason="Xml tooling is not translatable">
                 <file path="com/itextpdf/signatures/validation/report/xml/XmlReportGenerator.java"/>
@@ -626,9 +636,6 @@
             <fileset reason="The ignore is added here due to java.awt is not expected to be ported">
                 <file path="com/itextpdf/kernel/pdf/xobject/ImageFromLanguageStandardLibraryTest.java"/>
             </fileset>
-            <fileset reason="There's no serialization functionality in .Net, so there's no sense in this test class in .Net version">
-                <file path="com/itextpdf/kernel/pdf/DocumentSerializationTest.java"/>
-            </fileset>
             <fileset>
                 <file path="com/itextpdf/test/runtime/VeraPdfValidatorAppTest.java"/>
                 <file path="com/itextpdf/test/utils/UriUtilTest.java"/>
@@ -646,12 +653,14 @@
                 <file path="com/itextpdf/brotlicompressor/BrotliOutputStream.java"/>
                 <file path="com/itextpdf/brotlicompressor/BrotliOutputStreamTest.java"/>
             </fileset>
+
+            <!-- webp-image-support -->
+            <fileset reason="Java implementations is based on twelve-monkeys while .Net utilizes Skia">
+                <file path="com/itextpdf/webpimagesupport/WebPImageData.java"/>
+            </fileset>
         </java>
     </ignored>
      <resource>
-        <fileset reason="There's no serialization functionality in .Net, so there's no sense in this test class in .Net version">
-            <file path="com/itextpdf/kernel/pdf/DocumentSerializationTest/cmp_Listing_06_19_FillDataSheet.pdf" />
-        </fileset>
         <file path="com/itextpdf/kernel/pdf/xobject/GetImageBytesTest/ASCII85_RunLengthDecode.png" />
         <file path="com/itextpdf/kernel/pdf/xobject/GetImageBytesTest/ccittfaxdecode.png" />
         <file path="com/itextpdf/kernel/pdf/xobject/GetImageBytesTest/flatedecode_runlengthdecode.png" />
@@ -665,18 +674,14 @@
             <file path="com/itextpdf/signatures/sign/LtvSigTest/cmp_secondLtvOriginalHasNoVriTs01.pdf"/>
             <file path="com/itextpdf/signatures/sign/LtvSigTest/cmp_ltvEnabledSingleSignatureNoOcspDataTest.pdf"/>
             <file path="com/itextpdf/signatures/sign/LtvSigTest/cmp_ltvEnabledSingleSignatureNoCrlDataTest.pdf"/>
-            <file path="com/itextpdf/signatures/sign/LtvSigTest/cmp_ltvEnabledSingleSignatureTest01.pdf"/>
             <file path="com/itextpdf/signatures/sign/PadesSignatureLevelTest/cmp_padesSignatureLevelTTest01.pdf"/>
             <file path="com/itextpdf/signatures/sign/PadesSignatureLevelTest/cmp_padesSignatureLevelLTATest01.pdf"/>
-            <file path="com/itextpdf/signatures/sign/LtvSigTest/cmp_ltvEnabledTest01.pdf"/>
             <file path="com/itextpdf/signatures/sign/PadesSigTest/cmp_padesEccSigTest01.pdf"/>
             <file path="com/itextpdf/signatures/sign/PadesSigTest/cmp_padesEpesProfileTest01.pdf"/>
             <file path="com/itextpdf/signatures/sign/PadesSigTest/cmp_padesRsaSigTest01.pdf"/>
             <file path="com/itextpdf/signatures/sign/PadesSigTest/cmp_padesRsaSigTestWithChain01.pdf"/>
             <file path="com/itextpdf/signatures/sign/PadesSigTest/cmp_signaturePolicyInfoUnavailableUrl_signed.pdf"/>
             <file path="com/itextpdf/signatures/sign/PadesSigTest/helloWorldDoc.pdf"/>
-            <file path="com/itextpdf/signatures/sign/PadesSigTest/templateForSignDeferred.pdf"/>
-            <file path="com/itextpdf/signatures/sign/PadesSignatureLevelTest/cmp_padesSignatureLevelBTest01.pdf"/>
             <file path="com/itextpdf/signatures/sign/PadesSignatureLevelTest/cmp_padesSignatureLevelLTTest01.pdf"/>
             <file path="com/itextpdf/signatures/sign/PadesSignatureLevelTest/helloWorldDoc.pdf"/>
             <file path="com/itextpdf/signatures/sign/PadesSignatureLevelTest/signedPAdES-LT.pdf"/>
@@ -752,6 +757,16 @@
 		<fileset reason="Juunit specific files">
             <file path="junit-platform.properties"/>
         </fileset>
+
+         <!-- webp-image-support -->
+         <fileset reason="Java implementations is based on twelve-monkeys while .Net utilizes SkiaSharp, so results may differ">
+             <file path="com/itextpdf/webpimagesupport/image/cmp_lossyWebPImagePdf.pdf"/>
+             <file path="com/itextpdf/webpimagesupport/image/cmp_animatedWebPImagePdf.pdf"/>
+             <file path="com/itextpdf/webpimagesupport/image/cmp_opaqueWebPImagePdf.pdf"/>
+             <file path="com/itextpdf/webpimagesupport/image/cmp_displayP3ProfilePdf.pdf"/>
+             <file path="com/itextpdf/webpimagesupport/image/cmp_linearRGBProfilePdf.pdf"/>
+             <file path="com/itextpdf/webpimagesupport/image/cmp_orientationPdf.pdf"/>
+         </fileset>
     </resource>
     <src>
         <module name="pdftest" />

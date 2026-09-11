@@ -22,16 +22,17 @@
  */
 package com.itextpdf.layout.renderer;
 
-import com.itextpdf.io.logs.IoLogMessageConstant;
 import com.itextpdf.io.image.ImageDataFactory;
+import com.itextpdf.io.logs.IoLogMessageConstant;
 import com.itextpdf.io.source.ByteArrayOutputStream;
 import com.itextpdf.kernel.colors.ColorConstants;
 import com.itextpdf.kernel.colors.DeviceRgb;
-import com.itextpdf.kernel.colors.gradients.AbstractLinearGradientBuilder;
 import com.itextpdf.kernel.colors.gradients.GradientColorStop;
 import com.itextpdf.kernel.colors.gradients.GradientColorStop.OffsetType;
 import com.itextpdf.kernel.colors.gradients.GradientSpreadMethod;
+import com.itextpdf.kernel.colors.gradients.IGradientBuilder;
 import com.itextpdf.kernel.colors.gradients.LinearGradientBuilder;
+import com.itextpdf.kernel.colors.gradients.RadialGradientBuilder;
 import com.itextpdf.kernel.colors.gradients.StrategyBasedLinearGradientBuilder;
 import com.itextpdf.kernel.geom.Rectangle;
 import com.itextpdf.kernel.pdf.PdfDocument;
@@ -46,17 +47,19 @@ import com.itextpdf.layout.Document;
 import com.itextpdf.layout.borders.DashedBorder;
 import com.itextpdf.layout.element.Div;
 import com.itextpdf.layout.layout.LayoutArea;
+import com.itextpdf.layout.layout.LayoutContext;
 import com.itextpdf.layout.properties.Background;
 import com.itextpdf.layout.properties.BackgroundBox;
 import com.itextpdf.layout.properties.BackgroundImage;
-import com.itextpdf.layout.properties.BackgroundImage.Builder;
 import com.itextpdf.layout.properties.BackgroundPosition;
 import com.itextpdf.layout.properties.BackgroundRepeat;
 import com.itextpdf.layout.properties.BackgroundRepeat.BackgroundRepeatValue;
 import com.itextpdf.layout.properties.Property;
 import com.itextpdf.layout.properties.UnitValue;
-import com.itextpdf.test.AssertUtil;
+import com.itextpdf.layout.properties.VerticalTextOrientation;
+import com.itextpdf.layout.properties.WritingMode;
 import com.itextpdf.test.ExtendedITextTest;
+import com.itextpdf.test.LogLevelConstants;
 import com.itextpdf.test.annotations.LogMessage;
 import com.itextpdf.test.annotations.LogMessages;
 
@@ -64,37 +67,70 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import org.junit.jupiter.api.Assertions;
-import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Tag;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
 
 @Tag("UnitTest")
 public class AbstractRendererUnitTest extends ExtendedITextTest {
 
+    public static Iterable<Object[]> provideZeroWidthAndHeightRectangleSizes() {
+        return Arrays.asList(new Object[][] {
+                {0.0f, 40.0f},
+                {100.0f, 0.0f},
+                {0.0f, 0.0f},
+                {0.00001f, 50.0f},
+                {90.0f, 0.00001f},
+                {0.00001f, 0.00001f},
+        });
+    }
+
     @Test
-    public void createXObjectTest() {
-        AbstractLinearGradientBuilder gradientBuilder = new StrategyBasedLinearGradientBuilder()
-                .setGradientDirectionAsStrategy(StrategyBasedLinearGradientBuilder.GradientStrategy.TO_BOTTOM_LEFT)
-                .addColorStop(new GradientColorStop(ColorConstants.RED.getColorValue(), 0d, GradientColorStop.OffsetType.RELATIVE))
-                .addColorStop(new GradientColorStop(ColorConstants.GREEN.getColorValue(), 0.5, GradientColorStop.OffsetType.RELATIVE));
+    public void createXObjectWithLinearGradientTest() {
+        StrategyBasedLinearGradientBuilder gradientBuilder =
+                (StrategyBasedLinearGradientBuilder) new StrategyBasedLinearGradientBuilder()
+                        .setGradientDirectionAsStrategy(
+                                StrategyBasedLinearGradientBuilder.GradientStrategy.TO_BOTTOM_LEFT)
+                        .addStopColor(new GradientColorStop(ColorConstants.RED.getColorValue(), 0d,
+                                GradientColorStop.OffsetType.RELATIVE))
+                        .addStopColor(new GradientColorStop(ColorConstants.GREEN.getColorValue(), 0.5,
+                                GradientColorStop.OffsetType.RELATIVE));
 
         PdfDocument pdfDocument = new PdfDocument(new PdfWriter(new ByteArrayOutputStream()));
-        PdfXObject pdfXObject = AbstractRenderer.createXObject(gradientBuilder, new Rectangle(0, 0, 20, 20), pdfDocument);
+        PdfXObject pdfXObject = AbstractRenderer.createXObject(gradientBuilder, new Rectangle(0, 0, 20, 20),
+                pdfDocument);
         Assertions.assertNotNull(pdfXObject.getPdfObject().get(PdfName.Resources));
     }
 
     @Test
-    public void createXObjectWithNullLinearGradientTest() {
+    public void createXObjectWithNullGradientTest() {
         PdfDocument pdfDocument = new PdfDocument(new PdfWriter(new ByteArrayOutputStream()));
-        PdfXObject pdfXObject = AbstractRenderer.createXObject(null, new Rectangle(0, 0, 20, 20), pdfDocument);
+        PdfXObject pdfXObject =
+                AbstractRenderer.createXObject((IGradientBuilder) null, new Rectangle(0, 0, 20, 20), pdfDocument);
         Assertions.assertNull(pdfXObject.getPdfObject().get(PdfName.Resources));
     }
 
     @Test
-    public void createXObjectWithInvalidColorTest() {
-        AbstractLinearGradientBuilder gradientBuilder = new StrategyBasedLinearGradientBuilder();
+    public void createXObjectWithRadialGradientTest() {
+        RadialGradientBuilder gradientBuilder = (RadialGradientBuilder) new RadialGradientBuilder()
+                .setGradientVector(10, 10, 0, 10, 10, 10)
+                .addStopColor(new GradientColorStop(ColorConstants.RED.getColorValue(), 0d, OffsetType.RELATIVE))
+                .addStopColor(new GradientColorStop(ColorConstants.GREEN.getColorValue(), 1d, OffsetType.RELATIVE));
 
         PdfDocument pdfDocument = new PdfDocument(new PdfWriter(new ByteArrayOutputStream()));
-        PdfXObject pdfXObject = AbstractRenderer.createXObject(gradientBuilder, new Rectangle(0, 0, 20, 20), pdfDocument);
+        PdfXObject pdfXObject = AbstractRenderer.createXObject(gradientBuilder, new Rectangle(0, 0, 20, 20),
+                pdfDocument);
+        Assertions.assertNotNull(pdfXObject.getPdfObject().get(PdfName.Resources));
+    }
+
+    @Test
+    public void createXObjectWithInvalidColorTest() {
+        IGradientBuilder gradientBuilder = new StrategyBasedLinearGradientBuilder();
+
+        PdfDocument pdfDocument = new PdfDocument(new PdfWriter(new ByteArrayOutputStream()));
+        PdfXObject pdfXObject = AbstractRenderer.createXObject(gradientBuilder, new Rectangle(0, 0, 20, 20),
+                pdfDocument);
         Assertions.assertNull(pdfXObject.getPdfObject().get(PdfName.Resources));
     }
 
@@ -106,8 +142,8 @@ public class AbstractRendererUnitTest extends ExtendedITextTest {
                 return new Rectangle(99.0f, 49.0f);
             }
         };
-        final byte[] bytes = new byte[]{54, 25, 47, 15, 2, 2, 2, 44, 55, 77, 86, 24};
-        final int[] counter = new int[]{0};
+        final byte[] bytes = new byte[] {54, 25, 47, 15, 2, 2, 2, 44, 55, 77, 86, 24};
+        final int[] counter = new int[] {0};
         PdfDocument document = new PdfDocument(new PdfWriter(new java.io.ByteArrayOutputStream()));
         document.addNewPage();
         DrawContext context = new DrawContext(document, new PdfCanvas(document, 1) {
@@ -152,8 +188,8 @@ public class AbstractRendererUnitTest extends ExtendedITextTest {
                 return new Rectangle(100.0f, 49.0f);
             }
         };
-        final byte[] bytes = new byte[]{54, 25, 47, 15, 2, 2, 2, 44, 55, 77, 86, 24};
-        final int[] counter = new int[]{0};
+        final byte[] bytes = new byte[] {54, 25, 47, 15, 2, 2, 2, 44, 55, 77, 86, 24};
+        final int[] counter = new int[] {0};
         PdfDocument document = new PdfDocument(new PdfWriter(new java.io.ByteArrayOutputStream()));
         document.addNewPage();
         DrawContext context = new DrawContext(document, new PdfCanvas(document, 1) {
@@ -174,17 +210,18 @@ public class AbstractRendererUnitTest extends ExtendedITextTest {
         });
         List<BackgroundImage> images = new ArrayList<>();
         images.add(new BackgroundImage.Builder().setImage(
-                new PdfImageXObject(ImageDataFactory.createRawImage(bytes)) {
-                    @Override
-                    public float getWidth() {
-                        return 10.0f;
-                    }
+                        new PdfImageXObject(ImageDataFactory.createRawImage(bytes)) {
+                            @Override
+                            public float getWidth() {
+                                return 10.0f;
+                            }
 
-                    @Override
-                    public float getHeight() {
-                        return 10.0f;
-                    }
-                }).setBackgroundRepeat(new BackgroundRepeat(BackgroundRepeatValue.NO_REPEAT, BackgroundRepeatValue.REPEAT))
+                            @Override
+                            public float getHeight() {
+                                return 10.0f;
+                            }
+                        }).setBackgroundRepeat(
+                        new BackgroundRepeat(BackgroundRepeatValue.NO_REPEAT, BackgroundRepeatValue.REPEAT))
                 .build());
         renderer.setProperty(Property.BACKGROUND_IMAGE, images);
         renderer.drawBackground(context);
@@ -199,8 +236,8 @@ public class AbstractRendererUnitTest extends ExtendedITextTest {
                 return new Rectangle(99.0f, 50.0f);
             }
         };
-        final byte[] bytes = new byte[]{54, 25, 47, 15, 2, 2, 2, 44, 55, 77, 86, 24};
-        final int[] counter = new int[]{0};
+        final byte[] bytes = new byte[] {54, 25, 47, 15, 2, 2, 2, 44, 55, 77, 86, 24};
+        final int[] counter = new int[] {0};
         PdfDocument document = new PdfDocument(new PdfWriter(new java.io.ByteArrayOutputStream()));
         document.addNewPage();
         DrawContext context = new DrawContext(document, new PdfCanvas(document, 1) {
@@ -221,17 +258,18 @@ public class AbstractRendererUnitTest extends ExtendedITextTest {
         });
         List<BackgroundImage> images = new ArrayList<>();
         images.add(new BackgroundImage.Builder().setImage(
-                new PdfImageXObject(ImageDataFactory.createRawImage(bytes)) {
-                    @Override
-                    public float getWidth() {
-                        return 10.0f;
-                    }
+                        new PdfImageXObject(ImageDataFactory.createRawImage(bytes)) {
+                            @Override
+                            public float getWidth() {
+                                return 10.0f;
+                            }
 
-                    @Override
-                    public float getHeight() {
-                        return 10.0f;
-                    }
-                }).setBackgroundRepeat(new BackgroundRepeat(BackgroundRepeatValue.REPEAT, BackgroundRepeatValue.NO_REPEAT))
+                            @Override
+                            public float getHeight() {
+                                return 10.0f;
+                            }
+                        }).setBackgroundRepeat(
+                        new BackgroundRepeat(BackgroundRepeatValue.REPEAT, BackgroundRepeatValue.NO_REPEAT))
                 .build());
         renderer.setProperty(Property.BACKGROUND_IMAGE, images);
         renderer.drawBackground(context);
@@ -246,8 +284,8 @@ public class AbstractRendererUnitTest extends ExtendedITextTest {
                 return new Rectangle(100.0f, 50.0f);
             }
         };
-        final byte[] bytes = new byte[]{54, 25, 47, 15, 2, 2, 2, 44, 55, 77, 86, 24};
-        final int[] counter = new int[]{0};
+        final byte[] bytes = new byte[] {54, 25, 47, 15, 2, 2, 2, 44, 55, 77, 86, 24};
+        final int[] counter = new int[] {0};
         PdfDocument document = new PdfDocument(new PdfWriter(new java.io.ByteArrayOutputStream()));
         document.addNewPage();
         DrawContext context = new DrawContext(document, new PdfCanvas(document, 1) {
@@ -268,18 +306,18 @@ public class AbstractRendererUnitTest extends ExtendedITextTest {
         });
         List<BackgroundImage> images = new ArrayList<>();
         images.add(new BackgroundImage.Builder().setImage(
-                new PdfImageXObject(ImageDataFactory.createRawImage(bytes)) {
-                    @Override
-                    public float getWidth() {
-                        return 10.0f;
-                    }
+                        new PdfImageXObject(ImageDataFactory.createRawImage(bytes)) {
+                            @Override
+                            public float getWidth() {
+                                return 10.0f;
+                            }
 
-                    @Override
-                    public float getHeight() {
-                        return 10.0f;
-                    }
-                }).setBackgroundRepeat(
-                new BackgroundRepeat(BackgroundRepeatValue.NO_REPEAT))
+                            @Override
+                            public float getHeight() {
+                                return 10.0f;
+                            }
+                        }).setBackgroundRepeat(
+                        new BackgroundRepeat(BackgroundRepeatValue.NO_REPEAT))
                 .build());
         renderer.setProperty(Property.BACKGROUND_IMAGE, images);
         renderer.drawBackground(context);
@@ -294,7 +332,7 @@ public class AbstractRendererUnitTest extends ExtendedITextTest {
                 return new Rectangle(100.0f, 50.0f);
             }
         };
-        final byte[] bytes = new byte[]{54, 25, 47, 15, 2, 2, 2, 44, 55, 77, 86, 24};
+        final byte[] bytes = new byte[] {54, 25, 47, 15, 2, 2, 2, 44, 55, 77, 86, 24};
         PdfDocument document = new PdfDocument(new PdfWriter(new java.io.ByteArrayOutputStream()));
         document.addNewPage();
         DrawContext context = new DrawContext(document, new PdfCanvas(document, 1) {
@@ -316,17 +354,18 @@ public class AbstractRendererUnitTest extends ExtendedITextTest {
         });
         List<BackgroundImage> images = new ArrayList<>();
         images.add(new BackgroundImage.Builder().setImage(
-                new PdfImageXObject(ImageDataFactory.createRawImage(bytes)) {
-                    @Override
-                    public float getWidth() {
-                        return 10.0f;
-                    }
+                        new PdfImageXObject(ImageDataFactory.createRawImage(bytes)) {
+                            @Override
+                            public float getWidth() {
+                                return 10.0f;
+                            }
 
-                    @Override
-                    public float getHeight() {
-                        return 10.0f;
-                    }
-                }).setBackgroundPosition(new BackgroundPosition().setXShift(new UnitValue(UnitValue.PERCENT, 30)))
+                            @Override
+                            public float getHeight() {
+                                return 10.0f;
+                            }
+                        }).setBackgroundPosition(new BackgroundPosition().setXShift(new UnitValue(UnitValue.PERCENT,
+                        30)))
                 .build());
         renderer.setProperty(Property.BACKGROUND_IMAGE, images);
         renderer.drawBackground(context);
@@ -358,9 +397,11 @@ public class AbstractRendererUnitTest extends ExtendedITextTest {
             }
         });
         List<BackgroundImage> images = new ArrayList<>();
-        images.add(new BackgroundImage.Builder().setLinearGradientBuilder(new StrategyBasedLinearGradientBuilder()
-                .addColorStop(new GradientColorStop(ColorConstants.RED.getColorValue()))
-                .addColorStop(new GradientColorStop(ColorConstants.GREEN.getColorValue())))
+        StrategyBasedLinearGradientBuilder linearGradientBuilder =
+                (StrategyBasedLinearGradientBuilder) new StrategyBasedLinearGradientBuilder()
+                        .addStopColor(new GradientColorStop(ColorConstants.RED.getColorValue()))
+                        .addStopColor(new GradientColorStop(ColorConstants.GREEN.getColorValue()));
+        images.add(new BackgroundImage.Builder().setGradientBuilder(linearGradientBuilder)
                 .setBackgroundPosition(new BackgroundPosition().setPositionX(BackgroundPosition.PositionX.RIGHT)
                         .setPositionY(BackgroundPosition.PositionY.BOTTOM)
                         .setYShift(UnitValue.createPointValue(100)).setXShift(UnitValue.createPointValue(30)))
@@ -395,9 +436,11 @@ public class AbstractRendererUnitTest extends ExtendedITextTest {
             }
         });
         List<BackgroundImage> images = new ArrayList<>();
-        images.add(new BackgroundImage.Builder().setLinearGradientBuilder(new StrategyBasedLinearGradientBuilder()
-                .addColorStop(new GradientColorStop(ColorConstants.RED.getColorValue()))
-                .addColorStop(new GradientColorStop(ColorConstants.GREEN.getColorValue())))
+        StrategyBasedLinearGradientBuilder linearGradientBuilder =
+                (StrategyBasedLinearGradientBuilder) new StrategyBasedLinearGradientBuilder()
+                        .addStopColor(new GradientColorStop(ColorConstants.RED.getColorValue()))
+                        .addStopColor(new GradientColorStop(ColorConstants.GREEN.getColorValue()));
+        images.add(new BackgroundImage.Builder().setGradientBuilder(linearGradientBuilder)
                 .setBackgroundPosition(new BackgroundPosition().setPositionX(BackgroundPosition.PositionX.RIGHT)
                         .setPositionY(BackgroundPosition.PositionY.BOTTOM)
                         .setYShift(UnitValue.createPercentValue(70)).setXShift(UnitValue.createPercentValue(33)))
@@ -415,9 +458,9 @@ public class AbstractRendererUnitTest extends ExtendedITextTest {
             }
         };
         final List<byte[]> listBytes = Arrays.asList(
-                new byte[]{54, 25, 47, 15, 2, 2, 2, 44, 55, 77, 86, 24},
-                new byte[]{4, 15, 41, 23, 3, 2, 7, 14, 55, 27, 46, 12, 14, 14, 7, 7, 24, 25});
-        final int[] counter = new int[]{0};
+                new byte[] {54, 25, 47, 15, 2, 2, 2, 44, 55, 77, 86, 24},
+                new byte[] {4, 15, 41, 23, 3, 2, 7, 14, 55, 27, 46, 12, 14, 14, 7, 7, 24, 25});
+        final int[] counter = new int[] {0};
         PdfDocument document = new PdfDocument(new PdfWriter(new java.io.ByteArrayOutputStream()));
         document.addNewPage();
         DrawContext context = new DrawContext(document, new PdfCanvas(document, 1) {
@@ -436,28 +479,30 @@ public class AbstractRendererUnitTest extends ExtendedITextTest {
             }
         });
         renderer.setProperty(Property.BACKGROUND_IMAGE, Arrays.asList((BackgroundImage)
-                new BackgroundImage.Builder().setImage(new PdfImageXObject(ImageDataFactory.createRawImage(listBytes.get(1))) {
-                    @Override
-                    public float getWidth() {
-                        return 10.0f;
-                    }
+                new BackgroundImage.Builder().setImage(
+                        new PdfImageXObject(ImageDataFactory.createRawImage(listBytes.get(1))) {
+                            @Override
+                            public float getWidth() {
+                                return 10.0f;
+                            }
 
-                    @Override
-                    public float getHeight() {
-                        return 10.0f;
-                    }
-                }).build(), (BackgroundImage)
-                new BackgroundImage.Builder().setImage(new PdfImageXObject(ImageDataFactory.createRawImage(listBytes.get(0))) {
-                    @Override
-                    public float getWidth() {
-                        return 10.0f;
-                    }
+                            @Override
+                            public float getHeight() {
+                                return 10.0f;
+                            }
+                        }).build(), (BackgroundImage)
+                new BackgroundImage.Builder().setImage(
+                        new PdfImageXObject(ImageDataFactory.createRawImage(listBytes.get(0))) {
+                            @Override
+                            public float getWidth() {
+                                return 10.0f;
+                            }
 
-                    @Override
-                    public float getHeight() {
-                        return 10.0f;
-                    }
-                }).build()));
+                            @Override
+                            public float getHeight() {
+                                return 10.0f;
+                            }
+                        }).build()));
         renderer.drawBackground(context);
         Assertions.assertEquals(listBytes.size(), counter[0]);
     }
@@ -471,14 +516,14 @@ public class AbstractRendererUnitTest extends ExtendedITextTest {
             }
         };
         final List<byte[]> listBytes = Arrays.asList(
-                new byte[]{54, 25, 47, 15, 2, 2, 2, 44, 55, 77, 86, 24},
-                new byte[]{4, 15, 41, 23, 3, 2, 7, 14, 55, 27, 46, 12, 14, 14, 7, 7, 24, 25});
+                new byte[] {54, 25, 47, 15, 2, 2, 2, 44, 55, 77, 86, 24},
+                new byte[] {4, 15, 41, 23, 3, 2, 7, 14, 55, 27, 46, 12, 14, 14, 7, 7, 24, 25});
         final float widthHeight = 10.0f;
         final List<Rectangle> listRectangles = Arrays.asList(
                 new Rectangle(81, 20, widthHeight, widthHeight),
                 new Rectangle(0, 40, widthHeight, widthHeight)
         );
-        final int[] counter = new int[]{0};
+        final int[] counter = new int[] {0};
         PdfDocument document = new PdfDocument(new PdfWriter(new java.io.ByteArrayOutputStream()));
         document.addNewPage();
         DrawContext context = new DrawContext(document, new PdfCanvas(document, 1) {
@@ -499,29 +544,33 @@ public class AbstractRendererUnitTest extends ExtendedITextTest {
             }
         });
         renderer.setProperty(Property.BACKGROUND_IMAGE, Arrays.asList((BackgroundImage)
-                new BackgroundImage.Builder().setImage(new PdfImageXObject(ImageDataFactory.createRawImage(listBytes.get(1))) {
-                    @Override
-                    public float getWidth() {
-                        return widthHeight;
-                    }
+                new BackgroundImage.Builder().setImage(
+                        new PdfImageXObject(ImageDataFactory.createRawImage(listBytes.get(1))) {
+                            @Override
+                            public float getWidth() {
+                                return widthHeight;
+                            }
 
-                    @Override
-                    public float getHeight() {
-                        return widthHeight;
-                    }
-                }).build(), (BackgroundImage)
-                new BackgroundImage.Builder().setImage(new PdfImageXObject(ImageDataFactory.createRawImage(listBytes.get(0))) {
-                    @Override
-                    public float getWidth() {
-                        return widthHeight;
-                    }
+                            @Override
+                            public float getHeight() {
+                                return widthHeight;
+                            }
+                        }).build(), (BackgroundImage)
+                new BackgroundImage.Builder().setImage(
+                                new PdfImageXObject(ImageDataFactory.createRawImage(listBytes.get(0))) {
+                                    @Override
+                                    public float getWidth() {
+                                        return widthHeight;
+                                    }
 
-                    @Override
-                    public float getHeight() {
-                        return widthHeight;
-                    }
-                }).setBackgroundPosition(new BackgroundPosition().setPositionX(BackgroundPosition.PositionX.RIGHT)
-                        .setPositionY(BackgroundPosition.PositionY.CENTER).setXShift(new UnitValue(UnitValue.PERCENT, 10))).build()));
+                                    @Override
+                                    public float getHeight() {
+                                        return widthHeight;
+                                    }
+                                })
+                        .setBackgroundPosition(new BackgroundPosition().setPositionX(BackgroundPosition.PositionX.RIGHT)
+                                .setPositionY(BackgroundPosition.PositionY.CENTER)
+                                .setXShift(new UnitValue(UnitValue.PERCENT, 10))).build()));
         renderer.drawBackground(context);
         Assertions.assertEquals(listBytes.size(), counter[0]);
     }
@@ -584,8 +633,9 @@ public class AbstractRendererUnitTest extends ExtendedITextTest {
         final DrawContext drawContext = new DrawContext(pdfDocument, pdfCanvas);
         final AbstractRenderer renderer = new DivRenderer(new Div().setPadding(20).setBorder(new DashedBorder(10)));
         renderer.occupiedArea = new LayoutArea(1, new Rectangle(100f, 200f, 300f, 400f));
-        final BackgroundImage backgroundImage = new Builder().setImage(rawImage)
-                .setBackgroundRepeat(new BackgroundRepeat(BackgroundRepeatValue.NO_REPEAT)).setBackgroundClip(BackgroundBox.CONTENT_BOX)
+        final BackgroundImage backgroundImage = new BackgroundImage.Builder().setImage(rawImage)
+                .setBackgroundRepeat(new BackgroundRepeat(BackgroundRepeatValue.NO_REPEAT))
+                .setBackgroundClip(BackgroundBox.CONTENT_BOX)
                 .setBackgroundOrigin(BackgroundBox.BORDER_BOX).build();
 
         List<BackgroundImage> images = new ArrayList<>();
@@ -621,14 +671,18 @@ public class AbstractRendererUnitTest extends ExtendedITextTest {
         final AbstractRenderer renderer = new DivRenderer(new Div().setPadding(20).setBorder(new DashedBorder(10)));
         renderer.occupiedArea = new LayoutArea(1, new Rectangle(100f, 200f, 300f, 400f));
         Rectangle targetBoundingBox = new Rectangle(50f, 150f, 300f, 300f);
-        AbstractLinearGradientBuilder gradientBuilder = new LinearGradientBuilder()
-                .setGradientVector(targetBoundingBox.getLeft() + 100f, targetBoundingBox.getBottom() + 100f,
-                        targetBoundingBox.getRight() - 100f, targetBoundingBox.getTop() - 100f)
-                .setSpreadMethod(GradientSpreadMethod.PAD)
-                .addColorStop(new GradientColorStop(ColorConstants.RED.getColorValue(), 0d, OffsetType.RELATIVE))
-                .addColorStop(new GradientColorStop(ColorConstants.BLUE.getColorValue(), 1d, OffsetType.RELATIVE));
-        final BackgroundImage backgroundImage = new Builder().setLinearGradientBuilder(gradientBuilder)
-                .setBackgroundRepeat(new BackgroundRepeat(BackgroundRepeatValue.NO_REPEAT)).setBackgroundClip(BackgroundBox.CONTENT_BOX)
+        LinearGradientBuilder gradientBuilder =
+                (LinearGradientBuilder) new LinearGradientBuilder()
+                        .setGradientVector(targetBoundingBox.getLeft() + 100f, targetBoundingBox.getBottom() + 100f,
+                                targetBoundingBox.getRight() - 100f, targetBoundingBox.getTop() - 100f)
+                        .setSpread(GradientSpreadMethod.PAD)
+                        .addStopColor(
+                                new GradientColorStop(ColorConstants.RED.getColorValue(), 0d, OffsetType.RELATIVE))
+                        .addStopColor(
+                                new GradientColorStop(ColorConstants.BLUE.getColorValue(), 1d, OffsetType.RELATIVE));
+        final BackgroundImage backgroundImage = new BackgroundImage.Builder().setGradientBuilder(gradientBuilder)
+                .setBackgroundRepeat(new BackgroundRepeat(BackgroundRepeatValue.NO_REPEAT))
+                .setBackgroundClip(BackgroundBox.CONTENT_BOX)
                 .setBackgroundOrigin(BackgroundBox.BORDER_BOX).build();
         List<BackgroundImage> images = new ArrayList<>();
         images.add(backgroundImage);
@@ -637,7 +691,8 @@ public class AbstractRendererUnitTest extends ExtendedITextTest {
     }
 
     @Test
-    @LogMessages(messages = @LogMessage(messageTemplate = IoLogMessageConstant.PAGE_WAS_FLUSHED_ACTION_WILL_NOT_BE_PERFORMED))
+    @LogMessages(messages = @LogMessage(messageTemplate =
+            IoLogMessageConstant.PAGE_WAS_FLUSHED_ACTION_WILL_NOT_BE_PERFORMED))
     public void applyLinkAnnotationFlushedPageTest() {
         AbstractRenderer abstractRenderer = new DivRenderer(new Div());
         abstractRenderer.occupiedArea = new LayoutArea(1, new Rectangle(100, 100));
@@ -663,8 +718,34 @@ public class AbstractRendererUnitTest extends ExtendedITextTest {
             DivRenderer divRenderer = new DivRenderer(new Div());
             divRenderer.childRenderers.add(null);
 
-            AssertUtil.doesNotThrow(() -> renderer.linkRenderToDocument(divRenderer, doc.getPdfDocument()));
+            Assertions.assertDoesNotThrow(() -> renderer.linkRenderToDocument(divRenderer, doc.getPdfDocument()));
         }
+    }
+
+    @Test
+    public void isVerticalWritingTrueForVerticalModeUprightOrientationTest() {
+        AbstractRenderer renderer = new DivRenderer(new Div());
+        renderer.setProperty(Property.WRITING_MODE, WritingMode.VERTICAL_LR);
+        renderer.setProperty(Property.TEXT_ORIENTATION, VerticalTextOrientation.UPRIGHT);
+
+        Assertions.assertTrue(renderer.isVerticalWriting());
+    }
+
+    @Test
+    public void isVerticalWritingFalseForVerticalModeWithoutTextOrientationTest() {
+        AbstractRenderer renderer = new DivRenderer(new Div());
+        renderer.setProperty(Property.WRITING_MODE, WritingMode.VERTICAL_LR);
+
+        Assertions.assertFalse(renderer.isVerticalWriting());
+    }
+
+    @Test
+    public void isVerticalWritingFalseForHorizontalModeEvenUprightOrientationTest() {
+        AbstractRenderer renderer = new DivRenderer(new Div());
+        renderer.setProperty(Property.WRITING_MODE, WritingMode.HORIZONTAL_TB);
+        renderer.setProperty(Property.TEXT_ORIENTATION, VerticalTextOrientation.UPRIGHT);
+
+        Assertions.assertFalse(renderer.isVerticalWriting());
     }
 
     @Test
@@ -675,5 +756,36 @@ public class AbstractRendererUnitTest extends ExtendedITextTest {
         RootRenderer renderer = document.getRenderer();
         Rectangle rect = new Rectangle(0, 0);
         Assertions.assertThrows(ClassCastException.class, () -> renderer.applyMargins(rect, false));
+    }
+
+    @ParameterizedTest(name = "width={0}, height={1}")
+    @MethodSource("provideZeroWidthAndHeightRectangleSizes")
+    @LogMessages(messages = {
+            @LogMessage(messageTemplate = IoLogMessageConstant.RECTANGLE_HAS_NEGATIVE_OR_ZERO_SIZES,
+                    logLevel = LogLevelConstants.INFO)
+    })
+    public void drawColorBackgroundWithWidthOrHeightClippedToZeroTest(float width, float height) {
+        try (PdfDocument document = new PdfDocument(new PdfWriter(new java.io.ByteArrayOutputStream()))) {
+            document.addNewPage();
+            DrawContext context = new DrawContext(document, new PdfCanvas(document, 1));
+
+            float unclippedRectangleWidth = 100.0f;
+            float unclippedRectangleHeight = 50.0f;
+            Div div = new Div();
+            div.setWidth(unclippedRectangleWidth);
+            div.setHeight(unclippedRectangleHeight);
+            div.setPaddingRight(unclippedRectangleWidth - width);
+            div.setPaddingBottom(unclippedRectangleHeight - height);
+
+            AbstractRenderer renderer = (AbstractRenderer) div.getRenderer();
+            Background background = new Background(ColorConstants.RED, 1, BackgroundBox.CONTENT_BOX);
+            renderer.setProperty(Property.BACKGROUND, background);
+            renderer.layout(new LayoutContext(
+                    new LayoutArea(1, new Rectangle(unclippedRectangleWidth, unclippedRectangleHeight))));
+
+            renderer.drawBackground(context);
+
+            Assertions.assertEquals(0, document.getPage(1).getContentStream(0).getBytes().length);
+        }
     }
 }

@@ -23,10 +23,12 @@
 package com.itextpdf.layout.renderer;
 
 
+import com.itextpdf.commons.logs.LazyLogger;
 import com.itextpdf.commons.utils.MessageFormatUtil;
 import com.itextpdf.io.font.constants.StandardFonts;
 import com.itextpdf.io.logs.IoLogMessageConstant;
 import com.itextpdf.io.util.TextUtil;
+import com.itextpdf.kernel.exceptions.PdfException;
 import com.itextpdf.kernel.font.PdfFontFactory;
 import com.itextpdf.kernel.geom.Rectangle;
 import com.itextpdf.kernel.numbering.EnglishAlphabetNumbering;
@@ -35,6 +37,7 @@ import com.itextpdf.kernel.numbering.RomanNumbering;
 import com.itextpdf.kernel.pdf.tagging.StandardRoles;
 import com.itextpdf.layout.element.Image;
 import com.itextpdf.layout.element.Text;
+import com.itextpdf.layout.exceptions.LayoutExceptionMessageConstant;
 import com.itextpdf.layout.layout.LayoutArea;
 import com.itextpdf.layout.layout.LayoutContext;
 import com.itextpdf.layout.layout.LayoutResult;
@@ -47,14 +50,14 @@ import com.itextpdf.layout.properties.ListSymbolPosition;
 import com.itextpdf.layout.properties.Property;
 import com.itextpdf.layout.properties.UnitValue;
 import com.itextpdf.layout.tagging.LayoutTaggingHelper;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
 public class ListRenderer extends BlockRenderer {
+
+    private static final LazyLogger LOGGER = new LazyLogger(ListRenderer.class);
 
     /**
      * Creates a ListRenderer from its corresponding layout object.
@@ -268,8 +271,13 @@ public class ListRenderer extends BlockRenderer {
         ListRenderer newOverflowRenderer = (ListRenderer) createOverflowRenderer(LayoutResult.PARTIAL);
         newOverflowRenderer.deleteOwnProperty(Property.FORCED_PLACEMENT);
         // ListItemRenderer for not rendered children of firstListItemRenderer
-        newOverflowRenderer.childRenderers.
-                add(((ListItemRenderer) firstListItemRenderer).createOverflowRenderer(LayoutResult.PARTIAL));
+        if (firstListItemRenderer instanceof ListItemRenderer) {
+            newOverflowRenderer.childRenderers.
+                    add(((ListItemRenderer) firstListItemRenderer).createOverflowRenderer(LayoutResult.PARTIAL));
+        } else {
+            throw new PdfException(MessageFormatUtil.format(
+                    LayoutExceptionMessageConstant.INCORRECT_LIST_CHILD, firstListItemRenderer.getClass()));
+        }
         newOverflowRenderer.childRenderers.
                 addAll(splitRenderer.getChildRenderers().subList(1, splitRenderer.getChildRenderers().size()));
 
@@ -360,8 +368,7 @@ public class ListRenderer extends BlockRenderer {
                 UnitValue marginToSetUV =
                         childRenderer.<UnitValue>getProperty(marginToSet, UnitValue.createPointValue(0f));
                 if (!marginToSetUV.isPointValue()) {
-                    Logger logger = LoggerFactory.getLogger(ListRenderer.class);
-                    logger.error(MessageFormatUtil.format(
+                    LOGGER.error(() -> MessageFormatUtil.format(
                             IoLogMessageConstant.PROPERTY_IN_PERCENTS_NOT_SUPPORTED,
                             marginToSet));
                 }
@@ -373,7 +380,17 @@ public class ListRenderer extends BlockRenderer {
                 childRenderer.setProperty(marginToSet, UnitValue.createPointValue(calculatedMargin));
 
                 IRenderer symbolRenderer = symbolRenderers.get(listItemNum++);
-                ((ListItemRenderer) childRenderer).addSymbolRenderer(symbolRenderer, maxSymbolWidth);
+                if (childRenderer instanceof ListItemRenderer) {
+                    ((ListItemRenderer) childRenderer).addSymbolRenderer(symbolRenderer, maxSymbolWidth);
+                } else if (childRenderer instanceof AbsolutelyPositionedRenderer &&
+                        ((AbsolutelyPositionedRenderer) childRenderer).getWrappedRenderer()
+                                instanceof ListItemRenderer) {
+                    ((ListItemRenderer) ((AbsolutelyPositionedRenderer) childRenderer).getWrappedRenderer())
+                            .addSymbolRenderer(symbolRenderer, maxSymbolWidth);
+                } else {
+                    throw new PdfException(MessageFormatUtil.format(
+                            LayoutExceptionMessageConstant.INCORRECT_LIST_CHILD, childRenderer.getClass()));
+                }
                 if (symbolRenderer != null) {
                     LayoutTaggingHelper taggingHelper = this.<LayoutTaggingHelper>getProperty(Property.TAGGING_HELPER);
                     if (taggingHelper != null) {

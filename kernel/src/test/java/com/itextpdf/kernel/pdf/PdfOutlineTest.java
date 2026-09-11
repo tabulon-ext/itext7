@@ -35,7 +35,6 @@ import com.itextpdf.kernel.pdf.navigation.PdfDestination;
 import com.itextpdf.kernel.pdf.navigation.PdfExplicitDestination;
 import com.itextpdf.kernel.pdf.navigation.PdfStringDestination;
 import com.itextpdf.kernel.utils.CompareTool;
-import com.itextpdf.test.AssertUtil;
 import com.itextpdf.test.ExtendedITextTest;
 import com.itextpdf.test.TestUtil;
 import com.itextpdf.test.annotations.LogMessage;
@@ -170,13 +169,13 @@ public class PdfOutlineTest extends ExtendedITextTest {
 
         pdfDoc.close();
         CompareTool compareTool = new CompareTool();
+        String diffTags = compareTool.compareTagStructures(DESTINATION_FOLDER + filename, SOURCE_FOLDER + "cmp_" + filename);
         String diffContent = compareTool.compareByContent(DESTINATION_FOLDER + filename, SOURCE_FOLDER + "cmp_" + filename,
                 DESTINATION_FOLDER, "diff_");
-        String diffTags = compareTool.compareTagStructures(DESTINATION_FOLDER + filename, SOURCE_FOLDER + "cmp_" + filename);
         if (diffContent != null || diffTags != null) {
-            diffContent = diffContent != null ? diffContent : "";
             diffTags = diffTags != null ? diffTags : "";
-            Assertions.fail(diffContent + diffTags);
+            diffContent = diffContent != null ? diffContent : "";
+            Assertions.fail(diffTags + diffContent);
         }
     }
 
@@ -531,7 +530,7 @@ public class PdfOutlineTest extends ExtendedITextTest {
             outlineDictionary.put(PdfName.Title, new PdfString("title", PdfEncodings.UNICODE_BIG));
             first.put(PdfName.Title, new PdfString("title", PdfEncodings.UNICODE_BIG));
 
-            AssertUtil.doesNotThrow(() -> pdfDocument.getCatalog()
+            Assertions.assertDoesNotThrow(() -> pdfDocument.getCatalog()
                     .constructOutlines(outlineDictionary, new EmptyNameTree()));
         }
     }
@@ -679,7 +678,7 @@ public class PdfOutlineTest extends ExtendedITextTest {
             first.put(PdfName.Title, new PdfString("title", PdfEncodings.UNICODE_BIG));
             second.put(PdfName.Title, new PdfString("title", PdfEncodings.UNICODE_BIG));
 
-            AssertUtil.doesNotThrow(() -> pdfDocument.getCatalog()
+            Assertions.assertDoesNotThrow(() -> pdfDocument.getCatalog()
                     .constructOutlines(outlineDictionary, new EmptyNameTree()));
             PdfOutline resultedOutline = pdfDocument.getOutlines(false);
             Assertions.assertEquals(2, resultedOutline.getAllChildren().size());
@@ -710,7 +709,7 @@ public class PdfOutlineTest extends ExtendedITextTest {
             outlineDictionary.put(PdfName.Title, new PdfString("title", PdfEncodings.UNICODE_BIG));
             first.put(PdfName.Title, new PdfString("title", PdfEncodings.UNICODE_BIG));
 
-            AssertUtil.doesNotThrow(() -> pdfDocument.getCatalog()
+            Assertions.assertDoesNotThrow(() -> pdfDocument.getCatalog()
                     .constructOutlines(outlineDictionary, new EmptyNameTree()));
             PdfOutline resultedOutline = pdfDocument.getOutlines(false);
             Assertions.assertEquals(1, resultedOutline.getAllChildren().size());

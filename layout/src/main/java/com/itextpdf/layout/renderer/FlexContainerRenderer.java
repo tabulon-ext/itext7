@@ -22,12 +22,14 @@
  */
 package com.itextpdf.layout.renderer;
 
+import com.itextpdf.commons.logs.LazyLogger;
 import com.itextpdf.kernel.geom.Rectangle;
 import com.itextpdf.layout.borders.Border;
 import com.itextpdf.layout.element.Div;
 import com.itextpdf.layout.layout.LayoutArea;
 import com.itextpdf.layout.layout.LayoutContext;
 import com.itextpdf.layout.layout.LayoutResult;
+import com.itextpdf.layout.logs.LayoutLogMessageConstant;
 import com.itextpdf.layout.margincollapse.MarginsCollapseHandler;
 import com.itextpdf.layout.margincollapse.MarginsCollapseInfo;
 import com.itextpdf.layout.minmaxwidth.MinMaxWidth;
@@ -50,6 +52,8 @@ import java.util.Map;
 import java.util.Set;
 
 public class FlexContainerRenderer extends DivRenderer {
+
+    private static final LazyLogger LOGGER = new LazyLogger(FlexContainerRenderer.class);
 
     /**
      * Used for caching purposes in FlexUtil
@@ -82,6 +86,7 @@ public class FlexContainerRenderer extends DivRenderer {
      */
     public FlexContainerRenderer(Div modelElement) {
         super(modelElement);
+        setProperty(Property.IGNORE_AREA_AND_SECTION_BREAKS, Boolean.TRUE);
     }
 
     /**
@@ -241,7 +246,7 @@ public class FlexContainerRenderer extends DivRenderer {
         }
 
         if (this.getPropertyAsFloat(Property.ROTATION_ANGLE) != null) {
-            return RotationUtils.countRotationMinMaxWidth(minMaxWidth, this);
+            return RotationUtils.calculateRotationMinMaxWidth(minMaxWidth, this);
         }
 
         return minMaxWidth;
@@ -376,11 +381,11 @@ public class FlexContainerRenderer extends DivRenderer {
         applyBorderBox(occupiedArea.getBBox(), borders, true);
         applyMargins(occupiedArea.getBBox(), true);
         if (splitRenderer == null || splitRenderer.getChildRenderers().isEmpty()) {
-            return new LayoutResult(LayoutResult.NOTHING, null, null, overflowRenderer,
-                    result.getCauseOfNothing()).setAreaBreak(result.getAreaBreak());
+            return new LayoutResult(LayoutResult.NOTHING, null, null, overflowRenderer, result.getCauseOfNothing())
+                    .setAreaBreak(result.getAreaBreak()).setSectionBreak(result.getSectionBreak());
         } else {
-            return new LayoutResult(LayoutResult.PARTIAL, layoutContext.getArea(), splitRenderer,
-                    overflowRenderer, null).setAreaBreak(result.getAreaBreak());
+            return new LayoutResult(LayoutResult.PARTIAL, layoutContext.getArea(), splitRenderer, overflowRenderer,
+                    null).setAreaBreak(result.getAreaBreak()).setSectionBreak(result.getSectionBreak());
         }
     }
 
@@ -402,8 +407,13 @@ public class FlexContainerRenderer extends DivRenderer {
         final Rectangle oldBBox = occupiedArea.getBBox().clone();
         final Rectangle recalculatedRectangle = Rectangle.getCommonRectangle(occupiedArea.getBBox(),
                 resultBBox);
-        occupiedArea.getBBox().setY(recalculatedRectangle.getY());
-        occupiedArea.getBBox().setHeight(recalculatedRectangle.getHeight());
+        if (isVerticalWriting()) {
+            occupiedArea.setBBox(Rectangle.getCommonRectangle(occupiedArea.getBBox(), resultBBox));
+        } else {
+            occupiedArea.getBBox().setY(recalculatedRectangle.getY());
+            occupiedArea.getBBox().setHeight(recalculatedRectangle.getHeight());
+        }
+
         if (oldBBox.getTop() < occupiedArea.getBBox().getTop()) {
             occupiedArea.getBBox().decreaseHeight(occupiedArea.getBBox().getTop() - oldBBox.getTop());
         }
@@ -557,13 +567,16 @@ public class FlexContainerRenderer extends DivRenderer {
      */
     @Override
     public void addChild(IRenderer renderer) {
+        if (renderer instanceof AreaBreakRenderer || renderer instanceof SectionBreakRenderer) {
+            LOGGER.warn(() -> LayoutLogMessageConstant.FLEX_CONTAINER_SHOULD_NOT_CONTAIN_AREA_OR_SECTION_BREAK);
+            return;
+        }
+
         // TODO DEVSIX-5087 Since overflow-fit is an internal iText overflow value, we do not need to support if
         // for html/css objects, such as flex. As for now we will set VISIBLE by default, however, while working
         // on the ticket one may come to some more satifactory approach
-        if (!(renderer instanceof AreaBreakRenderer)) {
-            renderer.setProperty(Property.OVERFLOW_X, OverflowPropertyValue.VISIBLE);
-            super.addChild(renderer);
-        }
+        renderer.setProperty(Property.OVERFLOW_X, OverflowPropertyValue.VISIBLE);
+        super.addChild(renderer);
     }
 
     private static void orderChildRenderers(List<IRenderer> renderers) {

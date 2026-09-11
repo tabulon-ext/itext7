@@ -76,18 +76,18 @@ public class XrefStreamDocumentUpdatesTest extends ExtendedITextTest {
         PdfArray media = pdfDoc.getPage(1).getPdfObject().getAsArray(PdfName.MediaBox);
         media.remove(2);
         media.add(new PdfNumber(500));
-        media.setModified();
+        pdfDoc.getPage(1).setModified();
 
         pdfDoc.close();
 
-        PdfDocument doc = new PdfDocument(new PdfReader(sourceFolder + "adjustingsInObjStm.pdf"));
+        int expectNumberOfObjects = pdfDoc.getNumberOfPdfObjects();
+        Assertions.assertEquals(10, expectNumberOfObjects);
+
+        // Output pdf document should be openable
+        PdfDocument doc = new PdfDocument(CompareTool.createOutputReader(outputFile));
         PdfObject object = doc.getPdfObject(8);
         PdfDictionary pageDict = (PdfDictionary) object;
 
-        int expectNumberOfObjects = pdfDoc.getNumberOfPdfObjects();
-
-        //output pdf document should be openable
-        Assertions.assertEquals(10, expectNumberOfObjects);
         Assertions.assertEquals(PdfName.ObjStm, pageDict.get(PdfName.Type));
     }
 
@@ -104,14 +104,13 @@ public class XrefStreamDocumentUpdatesTest extends ExtendedITextTest {
         newObj.setModified();
         pdfDoc.close();
 
-        PdfDocument doc = new PdfDocument(new PdfReader(sourceFolder + "adjustingsInObjStmInIncrement.pdf"));
+        // Output pdf document should be openable
+        PdfDocument doc = new PdfDocument(CompareTool.createOutputReader(outputFile));
 
         PdfDictionary objStmDict = (PdfDictionary) doc.getPdfObject(8);
-
         int expectNumberOfObjects = doc.getNumberOfPdfObjects();
 
-        //output pdf document should be openable
-        Assertions.assertEquals(9, expectNumberOfObjects);
+        Assertions.assertEquals(10, expectNumberOfObjects);
         Assertions.assertEquals(PdfName.ObjStm, objStmDict.get(PdfName.Type));
         doc.close();
     }
@@ -286,13 +285,13 @@ public class XrefStreamDocumentUpdatesTest extends ExtendedITextTest {
 
         PdfDocument pdfDoc1 = new PdfDocument(
                 new PdfReader(inFileName),
-                new PdfWriter(destinationFolder + "hybridReferenceDocumentUpdate.pdf"),
+                CompareTool.createTestPdfWriter(destinationFolder + "hybridReferenceDocumentUpdate.pdf"),
                 new StampingProperties().useAppendMode()
         );
         pdfDoc1.close();
 
         PdfDocument pdfDoc2 = new PdfDocument(
-                new PdfReader(destinationFolder + "hybridReferenceDocumentUpdate.pdf"),
+                CompareTool.createOutputReader(destinationFolder + "hybridReferenceDocumentUpdate.pdf"),
                 CompareTool.createTestPdfWriter(outFileName),
                 new StampingProperties().useAppendMode()
         );
